@@ -2,10 +2,12 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from .models import Profile
+#from django.schedule.models import Student
 
 
 class UserRegisterForm(UserCreationForm):
 	email = forms.EmailField()
+	#student = models.OneToOneField('Student',on_delete=models.SET_NULL,default=None,blank=True,null=True)
 
 	class Meta:
 		model = User

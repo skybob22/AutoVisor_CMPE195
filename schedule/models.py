@@ -75,6 +75,9 @@ GE_AREAS = (
 class GEArea(models.Model):
 	area = models.CharField(max_length=2,choices=GE_AREAS)
 
+	def __str__(self):
+		return self.area 
+
 class PrereqGrade(models.Model):
 	course = models.ForeignKey('Course',on_delete=models.CASCADE,related_name='The_Course')
 	prereq = models.ForeignKey('Course',on_delete=models.CASCADE,related_name='The_Prereq')
@@ -83,6 +86,9 @@ class PrereqGrade(models.Model):
 	class Meta:
 		unique_together = ('course','prereq',)
 
+	def __str__(self):
+		return str(self.course) + ' -> ' + str(self.prereq)
+
 class Course(models.Model):
 	id = models.AutoField(primary_key=True)
 	department = models.ForeignKey('Department',on_delete=models.RESTRICT)
@@ -90,11 +96,12 @@ class Course(models.Model):
 	numUnits = models.IntegerField(default=3)
 	prereqs = models.ManyToManyField('self',symmetrical=False,blank=True,related_name='Prerequisites',through='PrereqGrade')
 	coreqs = models.ManyToManyField('self',symmetrical=False,blank=True,related_name='Corequisites')
-	GEArea = models.ForeignKey('GEArea',on_delete=models.SET_NULL,blank=True,default=None,null=True)
+	GEArea = models.ManyToManyField('GEArea', symmetrical=False, blank=True)
 
 	class Meta:
 		#Ensure that the combination of department and courseID is unique, pseudo-primary key
 		unique_together = ('department', 'courseID', )
+		ordering = ('department', 'courseID', )
 
 	def __str__(self):
 		return str(self.department) + ' ' + self.courseID
@@ -148,6 +155,7 @@ class GERequirement(models.Model):
 	GEAreas =  models.ManyToManyField('GEArea',symmetrical=False)
 	numCourses = models.IntegerField()
 
+
 TERMS = (
 	('Spring','Spring'),
 	('Summer','Summer'),
@@ -160,6 +168,9 @@ class CatalogueGrade(models.Model):
 	catalogue = models.ForeignKey('Catalogue',on_delete=models.CASCADE)
 	grade = models.CharField(max_length=2,choices=GRADES,default='C-')
 	GEReqID = models.ForeignKey('GERequirement',default=None,blank=True,null=True,on_delete=models.SET_NULL)
+
+	def __str__(self):
+		return str(self.catalogue) + ': ' + str(self.course)  
 
 
 class Catalogue(models.Model):
@@ -176,7 +187,7 @@ class Catalogue(models.Model):
 		unique_together = ('department','year','term',)
 
 	def __str__(self):
-		retStr = str(self.department) + ' ' + str(self.term) + ' ' + str(self.year) + ':'
+		return str(self.department) + ' ' + str(self.term) + ' ' + str(self.year) + ':'
 
 	def addCourse(self,newCourse,grade='C-'):
 		#TODO: Add GE Req checking
