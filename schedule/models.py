@@ -24,12 +24,21 @@ class Post(models.Model):
 class College(models.Model):
 	name = models.CharField(max_length=50,primary_key=True)
 
+	class Meta:
+		ordering = ('name',)
+
+	def __str__(self):
+		return str(self.name)
+
 class Department(models.Model):
 	abrv = models.TextField(primary_key=True)
 	name = models.TextField()
 
+	class Meta:
+		ordering = ('abrv',)
+
 	def __str__(self):
-		return self.abrv
+		return str(self.abrv)
 
 
 
@@ -73,10 +82,13 @@ GE_AREAS = (
 )
 
 class GEArea(models.Model):
-	area = models.CharField(max_length=2,choices=GE_AREAS)
+	area = models.CharField(max_length=2,choices=GE_AREAS,unique=True)
+
+	class Meta:
+		ordering = ('area',)
 
 	def __str__(self):
-		return self.area 
+		return self.area
 
 class PrereqGrade(models.Model):
 	course = models.ForeignKey('Course',on_delete=models.CASCADE,related_name='The_Course')
@@ -85,6 +97,7 @@ class PrereqGrade(models.Model):
 
 	class Meta:
 		unique_together = ('course','prereq',)
+		ordering = ('course','prereq',)
 
 	def __str__(self):
 		return str(self.course) + ' -> ' + str(self.prereq)
@@ -135,6 +148,10 @@ class TransferCourse(models.Model):
 
 	class Meta:
 		unique_together = ('school','courseID',)
+		ordering = ('school','courseID',)
+
+	def __str__(self):
+		return str(school) + ': ' + str(courseID)
 
 class Articulation(models.Model):
 	id = models.AutoField(primary_key=True)
@@ -143,6 +160,10 @@ class Articulation(models.Model):
 
 	class Meta:
 		unique_together = ('course','SJSUCourse',)
+		ordering = ('course','SJSUCourse',)
+
+	def __str__(self):
+		return str(course) + " = SJSU: " + str(SJSUCourse)
 
 
 
@@ -154,6 +175,16 @@ class GERequirement(models.Model):
 	reqID = models.AutoField(primary_key=True)
 	GEAreas =  models.ManyToManyField('GEArea',symmetrical=False)
 	numCourses = models.IntegerField()
+
+	class Meta:
+		#TODO: Figure out how to sort by many-to-many field
+		pass
+
+	def __str__(self):
+		areas = []
+		for area in self.GEAreas.all():
+			areas.append(str(area))
+		return ','.join(areas)
 
 
 TERMS = (
@@ -167,10 +198,14 @@ class CatalogueGrade(models.Model):
 	course = models.ForeignKey('Course',on_delete=models.CASCADE)
 	catalogue = models.ForeignKey('Catalogue',on_delete=models.CASCADE)
 	grade = models.CharField(max_length=2,choices=GRADES,default='C-')
-	GEReqID = models.ForeignKey('GERequirement',default=None,blank=True,null=True,on_delete=models.SET_NULL)
+	GEReqID = models.ManyToManyField('GERequirement',symmetrical=False,blank=True)
+
+	class Meta:
+		unique_together = ('course','catalogue',)
+		ordering = ('catalogue','course',)
 
 	def __str__(self):
-		return str(self.catalogue) + ': ' + str(self.course)  
+		return str(self.catalogue) + ': ' + str(self.course)
 
 
 class Catalogue(models.Model):
@@ -185,9 +220,10 @@ class Catalogue(models.Model):
 	class Meta:
 		#Ensure that the combination of department
 		unique_together = ('department','year','term',)
+		ordering = ('department','year','term')
 
 	def __str__(self):
-		return str(self.department) + ' ' + str(self.term) + ' ' + str(self.year) + ':'
+		return str(self.department) + ' ' + str(self.term) + ' ' + str(self.year) + ''
 
 	def addCourse(self,newCourse,grade='C-'):
 		#TODO: Add GE Req checking
@@ -212,6 +248,10 @@ class TechElective(models.Model):
 
 	class Meta:
 		unique_together = ('department','course',)
+		ordering = ('department','course',)
+
+	def __str__(self):
+		return str(self.department) + str(self.course)
 
 
 
@@ -231,7 +271,14 @@ class TranscriptGrade(models.Model):
 	transcript = models.ForeignKey('Transcript',on_delete=models.CASCADE)
 	grade = models.CharField(max_length=2,choices=GRADES,default='F')
 	courseType = models.CharField(max_length=13,choices=CLASS_TYPE,default='General')
-	GEReqID = models.ForeignKey('GERequirement',default=None,blank=True,null=True,on_delete=models.SET_NULL)
+	GEReqID = models.ManyToManyField('GERequirement',symmetrical=False,blank=True)
+
+	class Meta:
+		unique_together = ('course','transcript',)
+		ordering = ('transcript','course',)
+
+	def __str__(self):
+		return str(self.transcript) + ': ' + str(self.course)
 
 class TransferGrade(models.Model):
 	course = models.ForeignKey('TransferCourse',on_delete=models.RESTRICT)
@@ -239,11 +286,22 @@ class TransferGrade(models.Model):
 	grade = models.CharField(max_length=2,choices=GRADES,default='F')
 	courseType = models.CharField(max_length=13,choices=CLASS_TYPE,default='General')
 
+	class Meta:
+		unique_together = ('course','transcript',)
+		ordering = ('transcript','course',)
+
+	def __str__(self):
+		return str(self.transcript) + ': ' + str(self.course)
+
 class Transcript(models.Model):
 	id = models.AutoField(primary_key=True)
 	coursesTaken = models.ManyToManyField('Course',symmetrical=False,through='TranscriptGrade')
 	coursesTransfered = models.ManyToManyField('TransferCourse',symmetrical=False,through='TransferGrade')
 	WSTPassed = models.BooleanField(default=False)
+
+	class Meta:
+		#TODO: Figure out how to reference student with symetrical one-to-one
+		pass
 
 
 
@@ -257,9 +315,17 @@ class SemesterSchedule(models.Model):
 	courses = models.ManyToManyField('Course',symmetrical=False)
 	transferCourses = models.ManyToManyField('TransferCourse',symmetrical=False)
 
+	class Meta:
+		#TODO: Figure out how to reference roadmap with symetrical many-to-many
+		pass
+
 class Roadmap(models.Model):
 	id = models.AutoField(primary_key=True)
-	semesterSchedules = models.ManyToManyField('SemesterSchedule',symmetrical=True)
+	semesterSchedules = models.ManyToManyField('SemesterSchedule',symmetrical=True,related_name='From_Roadmap')
+
+	class Meta:
+		#TODO: Figure out how to reference student with symetrical one-to-one
+		pass
 
 
 
@@ -277,3 +343,11 @@ class Student(models.Model):
 
 	friends = models.ManyToManyField('self',symmetrical=True,related_name='AcceptedFriends')
 	friendRequests = models.ManyToManyField('self',symmetrical=False,related_name='RequestFriends')
+
+	class Meta:
+		#TODO: Order by user name later
+		ordering = ('studentID',)
+
+	def __str__(self):
+		#TODO: Get student name from user later
+		return str(self.studentID)
