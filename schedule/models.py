@@ -78,11 +78,14 @@ GE_AREAS = (
 	('R','R'),
 	('S','S'),
 	('V','V'),
-	('Z','Z')
+	('Z','Z'),
+	('US1','US1'),
+	('US2','US2'),
+	('US3','US3')
 )
 
 class GEArea(models.Model):
-	area = models.CharField(max_length=2,choices=GE_AREAS,unique=True)
+	area = models.CharField(max_length=3,choices=GE_AREAS,unique=True)
 
 	class Meta:
 		ordering = ('area',)
@@ -174,7 +177,16 @@ class Articulation(models.Model):
 class GERequirement(models.Model):
 	reqID = models.AutoField(primary_key=True)
 	GEAreas =  models.ManyToManyField('GEArea',symmetrical=False)
-	numCourses = models.IntegerField()
+	#Normally one of these will be Null
+	#If numCourses not null, needs N courses in that area
+	#If numUnits not null, needs N units in that area
+	numCourses = models.IntegerField(blank=True,default=None,null=True)
+	numUnits = models.IntegerField(blank=True,default=None,null=True)
+	#If both not null, needs N courses worth that many units each
+	#If both null, then just must be completed, no unit/course # requirement
+	allowOverlap = models.BooleanField(default=False)
+	#For single-GE areas, allowOverlap=False means if already used, cant be used again
+	#For classes with Multiple GE area's (e.g ENGR100W), ignore this field, can be used for all listed areas
 
 	class Meta:
 		#TODO: Figure out how to sort by many-to-many field
@@ -339,6 +351,7 @@ class Student(models.Model):
 
 	catalog = models.ForeignKey('Catalogue',on_delete=models.RESTRICT)
 	roadmap = models.OneToOneField('Roadmap',on_delete=models.SET_NULL,default=None,blank=True,null=True)
+	perferredCourses = models.ManyToManyField('Course',symmetrical=False);
 	transcript = models.OneToOneField('Transcript',on_delete=models.SET_NULL,default=None,blank=True,null=True)
 
 	friends = models.ManyToManyField('self',symmetrical=True,related_name='AcceptedFriends')
