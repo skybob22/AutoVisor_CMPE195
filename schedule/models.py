@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.urls import reverse
+from datetime import date
 
 # Create your models here.
 class Post(models.Model):
@@ -348,8 +349,11 @@ class Roadmap(models.Model):
 class Student(models.Model):
 	#TODO: Add reference from User
 	studentID = models.CharField(max_length=9,primary_key=True)
+	user = models.OneToOneField(User, default=None, null=True, on_delete=models.CASCADE)
+	startDate = models.DateField(default=date.today, blank=True, null=True)
+	numYears = models.IntegerField(default=4)
 
-	catalog = models.ForeignKey('Catalogue',on_delete=models.RESTRICT)
+	catalogue = models.ForeignKey('Catalogue',on_delete=models.RESTRICT)
 	roadmap = models.OneToOneField('Roadmap',on_delete=models.SET_NULL,default=None,blank=True,null=True)
 	perferredCourses = models.ManyToManyField('Course',symmetrical=False);
 	transcript = models.OneToOneField('Transcript',on_delete=models.SET_NULL,default=None,blank=True,null=True)
@@ -364,3 +368,4 @@ class Student(models.Model):
 	def __str__(self):
 		#TODO: Get student name from user later
 		return str(self.studentID)
+
