@@ -1,7 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from .forms import UserRegisterForm, UserUpdateForm, ProfileUpdateForm
+from .forms import *
+from schedule.models import Student
 
 
 # Create your views here.
@@ -37,3 +38,20 @@ def profile(request):
 	}
 
 	return render(request, 'users/profile.html', context)
+
+@login_required #decorator adds functionality
+def student(request):
+	s_form = StudentInfoForm(request.POST or None)
+	if s_form.is_valid():
+		obj = s_form.save()
+		obj.user = request.user
+		obj.save()
+		messages.success(request, f'You Student Information has been updated!')
+
+	context = {
+		's_form': s_form
+	}
+
+	
+
+	return render(request, 'users/student.html', context)
