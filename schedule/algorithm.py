@@ -16,7 +16,7 @@ def generateRoadmap(student):
 
     # Before generating roadmap, make sure all GE reqs and tech electives are met between preferred courses and transcript
 
-
+    return str(student)
     courseGraph = graph(student)
     #result = courseGraph.depthFirstSearch()
 
@@ -56,15 +56,17 @@ def getMissingTech(student):
         # Can also be used on dynamic page to get number of units needed to select
 
 
-class graph
+class graph:
     # Map of nodes
 
     class node:
+        pass
     # Prereq list (other nodes)
     # Coreq list (other nodes)
     # Posreq list (other nodes)
 
     # Course
+
 
     def __init__(self,student):
         self.student = student

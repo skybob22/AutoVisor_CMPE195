@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from .models import Post
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.decorators import login_required
+from .algorithm import generateRoadmap
 
 # from django.http import HttpResponse
 
@@ -86,6 +87,7 @@ class PostDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 			return True
 		return False
 
+	 
 
 def about(request):
 	return render(request, 'schedule/about.html', {'title': 'About'})
@@ -97,7 +99,10 @@ def transcript(request):
 
 @login_required
 def roadmap(request):
-	return render(request, 'schedule/roadmap.html', {'title': 'Roadmap'})
+	rp = 'Not Clicked Yet!'
+	if(request.GET.get('print_btn')):
+		rp = generateRoadmap(request.user)
+	return render(request, 'schedule/roadmap.html', {'rp': rp})
 
 @login_required
 def community(request):
