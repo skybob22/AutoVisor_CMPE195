@@ -1,8 +1,13 @@
 {% extends "schedule/base.html" %}
 {% block content %}
-	<h1>Home Page!</h1>
-	 <a class="nav-item nav-link" href="{% url 'schedule-community' %}">Community</a>
-	 <a class="nav-item nav-link" href="{% url 'schedule-transcript' %}">Transcript</a>
-	 <a class="nav-item nav-link" href="{% url 'schedule-roadmap' %}">Roadmap</a>
+{% load static %}
+
+
+{% if user.is_authenticated %}
+<h1>Welcome to AutoVisor.</h1>
+
+{% else %}
+<h1>AutoVisor</h1>
+	{% endif %}
 
 {% endblock content %}
