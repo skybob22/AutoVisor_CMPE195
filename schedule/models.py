@@ -155,7 +155,7 @@ class TransferCourse(models.Model):
 		ordering = ('school','courseID',)
 
 	def __str__(self):
-		return str(school) + ': ' + str(courseID)
+		return str(self.school) + ': ' + str(self.courseID)
 
 class Articulation(models.Model):
 	id = models.AutoField(primary_key=True)
@@ -167,7 +167,7 @@ class Articulation(models.Model):
 		ordering = ('course','SJSUCourse',)
 
 	def __str__(self):
-		return str(course) + " = SJSU: " + str(SJSUCourse)
+		return str(self.course) + " = SJSU: " + str(self.SJSUCourse)
 
 
 
@@ -227,8 +227,8 @@ class Catalogue(models.Model):
 	term = models.CharField(max_length=6,choices=TERMS)
 	year = models.IntegerField()
 	techUnits = models.IntegerField(default=7)
-	courses = models.ManyToManyField('Course',symmetrical=False,through='CatalogueGrade')
-	GEReqs = models.ManyToManyField('GERequirement',symmetrical=False)
+	courses = models.ManyToManyField('Course',symmetrical=False,through='CatalogueGrade',blank=True)
+	GEReqs = models.ManyToManyField('GERequirement',symmetrical=False,blank=True)
 
 	class Meta:
 		#Ensure that the combination of department
@@ -308,13 +308,20 @@ class TransferGrade(models.Model):
 
 class Transcript(models.Model):
 	id = models.AutoField(primary_key=True)
-	coursesTaken = models.ManyToManyField('Course',symmetrical=False,through='TranscriptGrade')
-	coursesTransfered = models.ManyToManyField('TransferCourse',symmetrical=False,through='TransferGrade')
+	coursesTaken = models.ManyToManyField('Course',symmetrical=False,through='TranscriptGrade',blank=True)
+	coursesTransfered = models.ManyToManyField('TransferCourse',symmetrical=False,through='TransferGrade',blank=True)
 	WSTPassed = models.BooleanField(default=False)
 
 	class Meta:
 		#TODO: Figure out how to reference student with symetrical one-to-one
 		pass
+
+	def __str__(self):
+		try:
+			return str(self.student.user)
+		except:
+			return 'Unlinked Transcript: ' + str(self.id)
+
 
 
 
@@ -325,8 +332,8 @@ class SemesterSchedule(models.Model):
 	id = models.AutoField(primary_key=True)
 	term = models.CharField(max_length=6,choices=TERMS)
 	year = models.IntegerField()
-	courses = models.ManyToManyField('Course',symmetrical=False)
-	transferCourses = models.ManyToManyField('TransferCourse',symmetrical=False)
+	courses = models.ManyToManyField('Course',symmetrical=False,blank=True)
+	transferCourses = models.ManyToManyField('TransferCourse',symmetrical=False,blank=True)
 
 	class Meta:
 		#TODO: Figure out how to reference roadmap with symetrical many-to-many
@@ -334,7 +341,7 @@ class SemesterSchedule(models.Model):
 
 class Roadmap(models.Model):
 	id = models.AutoField(primary_key=True)
-	semesterSchedules = models.ManyToManyField('SemesterSchedule',symmetrical=True,related_name='From_Roadmap')
+	semesterSchedules = models.ManyToManyField('SemesterSchedule',symmetrical=True,related_name='From_Roadmap',blank=True)
 
 	class Meta:
 		#TODO: Figure out how to reference student with symetrical one-to-one
@@ -346,6 +353,18 @@ class Roadmap(models.Model):
 
 
 #====================Student Base Class====================#
+class PreferredCourse(models.Model):
+	course = models.ForeignKey('Course',on_delete=models.CASCADE)
+	student = models.ForeignKey('Student',on_delete=models.CASCADE)
+	reqID = models.ManyToManyField('GERequirement',default=None,blank=True)
+	courseType = models.CharField(max_length=13, choices=CLASS_TYPE, default='General')
+
+	class Meta:
+		ordering = ('student','course',)
+
+	def __str__(self):
+		return str(self.student) + ': ' + str(self.course)
+
 class Student(models.Model):
 	#TODO: Add reference from User
 	studentID = models.CharField(max_length=9,primary_key=True)
@@ -355,11 +374,11 @@ class Student(models.Model):
 
 	catalogue = models.ForeignKey('Catalogue',on_delete=models.RESTRICT)
 	roadmap = models.OneToOneField('Roadmap',on_delete=models.SET_NULL,default=None,blank=True,null=True)
-	perferredCourses = models.ManyToManyField('Course',symmetrical=False);
+	prefCourseList = models.ManyToManyField('Course',symmetrical=False,blank=True,through='PreferredCourse')
 	transcript = models.OneToOneField('Transcript',on_delete=models.SET_NULL,default=None,blank=True,null=True)
 
-	friends = models.ManyToManyField('self',symmetrical=True,related_name='AcceptedFriends')
-	friendRequests = models.ManyToManyField('self',symmetrical=False,related_name='RequestFriends')
+	friends = models.ManyToManyField('self',symmetrical=True,related_name='AcceptedFriends',blank=True)
+	friendRequests = models.ManyToManyField('self',symmetrical=False,related_name='RequestFriends',blank=True)
 
 	class Meta:
 		#TODO: Order by user name later
@@ -367,5 +386,5 @@ class Student(models.Model):
 
 	def __str__(self):
 		#TODO: Get student name from user later
-		return str(self.studentID)
+		return str(self.user) + ': ' + str(self.studentID)
 
