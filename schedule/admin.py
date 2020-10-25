@@ -11,3 +11,9 @@ admin.site.register(PrereqGrade)
 admin.site.register(GEArea)
 admin.site.register(CatalogueGrade)
 admin.site.register(GERequirement)
+
+
+admin.site.register(Student)
+admin.site.register(Transcript)
+admin.site.register(TranscriptGrade)
+admin.site.register(PreferredCourse)
