@@ -1,4 +1,5 @@
 from .models import *
+import random
 
 
 
@@ -132,7 +133,7 @@ def getPassedClasses(user):
 
         #Check the core classes
         catGrade = CatalogueGrade.objects.filter(catalogue=user.student.catalogue).filter(course=trGrade.course)
-        if catGrade and trGrade.grade in gradeOrBetter(catGrade.get().grade):
+        if len(catGrade) > 0 and trGrade.grade in gradeOrBetter(catGrade.get().grade):
             #Is a core class, has a required grade
             courseQuery = Course.objects.filter(id=catGrade.get().course.id)
             coursesPassed = (coursesPassed | courseQuery)
@@ -141,6 +142,9 @@ def getPassedClasses(user):
             coursesPassed = (coursesPassed | courseQuery)
 
     return coursesPassed
+
+
+
 
 
 class Graph:
@@ -154,6 +158,13 @@ class Graph:
             self.TransferCourse = None
 
             self.max_sem_level = None
+
+        def getNumUnits(self):
+            if self.TransferCourse is None:
+                return self.SJSUCourse.numUnits
+            else:
+                #TODO: Account for transfer courses
+                return 0
 
         def __str__(self):
             if self.TransferCourse is not None:
@@ -197,8 +208,6 @@ class Graph:
 
         pass
 
-
-
     def _addCourse(self,course):
         if self._userPassed(course):
             return None
@@ -220,13 +229,13 @@ class Graph:
 
         for coReq in course.coreqs.all():
             coReqNode = self._addCourse(coReq)
-            if coReqNode:
+            if coReqNode is not None:
                 courseNode.coReqs.append(coReqNode)
 
         if len(course.prereqs.all()) > 0:
             for preReq in course.prereqs.all():
                 preReqNode = self._addCourse(preReq)
-                if preReqNode:
+                if preReqNode is not None:
                     courseNode.preReqs.append(preReqNode)
                     preReqNode.postReqs.append(courseNode)
         else:
@@ -243,10 +252,19 @@ class Graph:
         return len(self.passedClasses.filter(id=course.id)) > 0
 
 
+
+
+
 class RoadMapGenerator:
     def __init__(self,user,graph):
         self.user = user
         self.graph = graph
+
+    def numUnitsInSemester(self,semesterList):
+        numUnits = 0
+        for courseNode in semesterList:
+            numUnits = numUnits + courseNode.getNumUnits()
+        return numUnits
 
     def getGen0(self):
         num_semester_left = self.user.student.numYears * 2
@@ -257,7 +275,7 @@ class RoadMapGenerator:
             node.max_sem_level = num_semester_left - len(longest_chain)
 
             for coReqNode in node.coReqs:
-                if not coReqNode.max_sem_level:
+                if coReqNode.max_sem_level is None:
                     coReq_longest_chain = self._traverse(coReqNode)
                     coReqNode.max_sem_level = num_semester_left - len(coReq_longest_chain)
                 if coReqNode.max_sem_level < node.max_sem_level:
@@ -268,14 +286,48 @@ class RoadMapGenerator:
             #Very rudimentary generation 0 schedule, based on prereq levels
             roadmap[node.max_sem_level].append(node)
 
-        #TODO: Try to push classes up the heierarchy that don't have prereqs
-        # To even out the number of classes per semester
+        #Spread out classes across semester
+        roadmap = self._distrubuteClasses(roadmap)
+        return roadmap
+
+    def _distrubuteClasses(self,roadmap):
+        num_semester_left = self.user.student.numYears * 2
+        num_units_left = 0
+        for key,node in self.graph.nodes.items():
+            num_units_left = num_units_left + node.getNumUnits()
+
+        #TODO: This is very inefficient, try to find better way to do it?
+        units_per_semester = max(num_units_left/num_semester_left,16)
+        for _pass in range(len(roadmap)):
+            #Have to do multiple passes so that classes "Bubble" up to the top
+            for i in range(len(roadmap)-1):
+                moveCandidates = []
+                for courseNode in roadmap[i+1]:
+                    movable = True
+                    for prereqNode in courseNode.preReqs:
+                        if prereqNode in roadmap[i]:
+                            movable = False
+                            break
+                    if len(courseNode.coReqs) > 0:
+                        #TODO: Account for moving sets of coreqs,
+                        # Currently not accounted for
+                        movable = False
+                    if movable:
+                        moveCandidates.append(courseNode)
+
+                while self.numUnitsInSemester(roadmap[i]) < units_per_semester and len(moveCandidates) > 0:
+                    index = random.randint(0,len(moveCandidates)-1)
+                    candidateNode = moveCandidates[index]
+                    if self.numUnitsInSemester(roadmap[i]) + candidateNode.getNumUnits() <= units_per_semester:
+                        roadmap[i].append(candidateNode)
+                        roadmap[i+1].remove(candidateNode)
+                    moveCandidates.remove(candidateNode)
         return roadmap
 
     def _traverse(self,node):
         courseList = []
 
-        if not node.postReqs:
+        if node.postReqs is None:
             courseList.append(node)
             return courseList
         else:
