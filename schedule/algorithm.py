@@ -25,13 +25,12 @@ def generateRoadmap(user):
 
     #All classes are accounted for
     courseGraph = Graph(user)
+    generator = RoadMapGenerator(user,courseGraph)
+    gen0 = generator.getGen0()
 
     return missingTech
 
-    #result = courseGraph.depthFirstSearch()
-
-    geneticAlgorithm()
-
+    # Run genetic algorithm
     # Save to database
     # Display to user
 
@@ -154,6 +153,8 @@ class Graph:
             self.SJSUCourse = None
             self.TransferCourse = None
 
+            self.max_sem_level = None
+
         def __str__(self):
             if self.TransferCourse is not None:
                 return str(self.TransferCourse)
@@ -181,6 +182,8 @@ class Graph:
         # Add on to list with GEs and Tech electives
 
         passedClasses = getPassedClasses(self.user)
+        self.passedClasses = passedClasses
+
         coreToTake = self.user.student.catalogue.courses.exclude(id__in=passedClasses.values('id'))
         optionalToTake = self.user.student.prefCourseList.exclude(id__in=passedClasses.values('id'))
 
@@ -197,6 +200,9 @@ class Graph:
 
 
     def _addCourse(self,course):
+        if self._userPassed(course):
+            return None
+
         #Create new node
         courseNode = Graph.Node()
         #Is course Transfer
@@ -214,13 +220,15 @@ class Graph:
 
         for coReq in course.coreqs.all():
             coReqNode = self._addCourse(coReq)
-            courseNode.coReqs.append(coReqNode)
+            if coReqNode:
+                courseNode.coReqs.append(coReqNode)
 
         if len(course.prereqs.all()) > 0:
             for preReq in course.prereqs.all():
                 preReqNode = self._addCourse(preReq)
-                courseNode.preReqs.append(preReqNode)
-                preReqNode.postReqs.append(courseNode)
+                if preReqNode:
+                    courseNode.preReqs.append(preReqNode)
+                    preReqNode.postReqs.append(courseNode)
         else:
             isRoot = True
             for coReq in courseNode.coReqs:
@@ -231,20 +239,68 @@ class Graph:
 
         return courseNode
 
-    def depthFirstSearch(self):
-        # Produces array of arrays
-        # (roadmap = arary of semester schedules, which are arrays)
+    def _userPassed(self,course):
+        return len(self.passedClasses.filter(id=course.id)) > 0
+
+
+class RoadMapGenerator:
+    def __init__(self,user,graph):
+        self.user = user
+        self.graph = graph
+
+    def getGen0(self):
+        num_semester_left = self.user.student.numYears * 2
+
+        roadmap = [[] for y in range(num_semester_left)]
+        for key,node in self.graph.nodes.items():
+            longest_chain = self._traverse(node)
+            node.max_sem_level = num_semester_left - len(longest_chain)
+
+            for coReqNode in node.coReqs:
+                if not coReqNode.max_sem_level:
+                    coReq_longest_chain = self._traverse(coReqNode)
+                    coReqNode.max_sem_level = num_semester_left - len(coReq_longest_chain)
+                if coReqNode.max_sem_level < node.max_sem_level:
+                    node.max_sem_level = coReqNode.max_sem_level
+            if node.max_sem_level < 0:
+                raise UserWarning("Not enough time left to complete class")
+
+            #Very rudimentary generation 0 schedule, based on prereq levels
+            roadmap[node.max_sem_level].append(node)
+
+        #TODO: Try to push classes up the heierarchy that don't have prereqs
+        # To even out the number of classes per semester
+        return roadmap
+
+    def _traverse(self,node):
+        courseList = []
+
+        if not node.postReqs:
+            courseList.append(node)
+            return courseList
+        else:
+            for postReqNode in node.postReqs:
+                retList = self._traverse(postReqNode)
+                if len(retList) > len(courseList):
+                    courseList = retList
+            courseList.insert(0,node)
+            return courseList
+
+    def _getLongestChain(self,node):
+            longestChain = []
+            for rootNode in self.graph.rootNodes:
+                retList = self._traverse(rootNode)
+                if len(retList) > len(longestChain):
+                    longestChain = retList
+            return longestChain
+
+
+
+
+
+
+    def _geneticAlgorithm(self):
         pass
-
-
-
-
-
-
-
-
-def geneticAlgorithm():
-    pass
-    # Run genetic algorithm (requires fitness function)
-    # Optimizes array of arrays to be better
-    # (Tentative) ex. min 20 generations & fitness above 85%
+        # Run genetic algorithm (requires fitness function)
+        # Optimizes array of arrays to be better
+        # (Tentative) ex. min 20 generations & fitness above 85%
