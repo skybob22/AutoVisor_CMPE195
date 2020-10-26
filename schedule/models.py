@@ -114,6 +114,8 @@ class Course(models.Model):
 	prereqs = models.ManyToManyField('self',symmetrical=False,blank=True,related_name='Prerequisites',through='PrereqGrade')
 	coreqs = models.ManyToManyField('self',symmetrical=False,blank=True,related_name='Corequisites')
 	GEArea = models.ManyToManyField('GEArea', symmetrical=False, blank=True)
+	#Needed for coreq with ENGR 195A/B
+	isCapstone = models.BooleanField(default=False)
 
 	class Meta:
 		#Ensure that the combination of department and courseID is unique, pseudo-primary key
