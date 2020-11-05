@@ -97,11 +97,24 @@ class GEArea(models.Model):
 class PrereqGrade(models.Model):
 	course = models.ForeignKey('Course',on_delete=models.CASCADE,related_name='The_Course')
 	prereq = models.ForeignKey('Course',on_delete=models.CASCADE,related_name='The_Prereq')
-	grade = models.CharField(max_length=2,choices=GRADES,default='C')
+	grade = models.CharField(max_length=2,choices=GRADES,default='C-')
 
 	class Meta:
 		unique_together = ('course','prereq',)
 		ordering = ('course','prereq',)
+
+	def __str__(self):
+		return str(self.course) + ' -> ' + str(self.prereq)
+
+#Duplicated PrereqGrade with different name due to requirements using "Trhough" attribute for many-to-many
+class OptionalPrereqGrade(models.Model):
+	course = models.ForeignKey('Course', on_delete=models.CASCADE, related_name='The_Optional_Course')
+	prereq = models.ForeignKey('Course', on_delete=models.CASCADE, related_name='The_Optional_Prereq')
+	grade = models.CharField(max_length=2, choices=GRADES, default='C-')
+
+	class Meta:
+		unique_together = ('course', 'prereq',)
+		ordering = ('course', 'prereq',)
 
 	def __str__(self):
 		return str(self.course) + ' -> ' + str(self.prereq)
@@ -114,8 +127,18 @@ class Course(models.Model):
 	prereqs = models.ManyToManyField('self',symmetrical=False,blank=True,related_name='Prerequisites',through='PrereqGrade')
 	coreqs = models.ManyToManyField('self',symmetrical=False,blank=True,related_name='Corequisites')
 	GEArea = models.ManyToManyField('GEArea', symmetrical=False, blank=True)
-	#Needed for coreq with ENGR 195A/B
+
+	#Optional fields used for handling edge cases such as Senior Project Courses and 100W
+	unitPrereq = models.IntegerField(default=0) #How many units must be taken before taking class
+	requiresWST = models.BooleanField(default=False)
 	isCapstone = models.BooleanField(default=False)
+
+	#For handling Prereqs and Coreqs where N of the options must be taken (i.e Corequisite with CMPE195A OR EE198A, etc.)
+	NOfPrereqs = models.ManyToManyField('self',symmetrical=False,blank=True,related_name='Optional_Prerequisites',through='OptionalPrereqGrade')
+	NPrereqs = models.IntegerField(default=0)
+	NOfCoreqs = models.ManyToManyField('self', symmetrical=False, blank=True, related_name='Optional_Corequisites')
+	NCoreqs = models.IntegerField(default=0)
+
 
 	class Meta:
 		#Ensure that the combination of department and courseID is unique, pseudo-primary key
