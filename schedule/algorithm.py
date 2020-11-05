@@ -1,4 +1,5 @@
 from .models import *
+from .util import *
 import random
 
 
@@ -27,121 +28,26 @@ def generateRoadmap(user):
     #All classes are accounted for
     courseGraph = Graph(user)
     generator = RoadMapGenerator(user,courseGraph)
-    gen0 = generator.getGen0()
+    gen0 = generator.getGen0Candidate()
 
-    return missingTech
+    #Test return string for testing purposes
+    tempStr = 'Your GPA: ' + str(getGPA(user)) + '\n\n'
+    tempStr = tempStr + 'Your Schedule:\n'
+    for i in range(len(gen0)):
+        tempStr = tempStr + 'Semester {0}:\n'.format(i+1)
+        for j in range(len(gen0[i])):
+            tempStr = tempStr + str(gen0[i][j])
+            if j < len(gen0[i])-1:
+                tempStr = tempStr + ','
+        tempStr = tempStr + '\n\n\n'
+    return tempStr
 
     # Run genetic algorithm
     # Save to database
     # Display to user
 
-##
-# @brief Gets a tuple of all the grades better than the specified grade
-# @param lowGrade the lowest grade you are willing to accept
-# @return The tuple of grades higher than, and including the input grade
-##
-def gradeOrBetter(lowGrade):
-    #List of existing grades (In order)
-    GRADES = ('A+','A','A-','B+','B','B-','C+','C','C-','D+','D','D-','F')
 
-    gradeList = []
-    for grade in GRADES:
-        gradeList.append(grade)
-        if grade == lowGrade:
-            break
-    return tuple(gradeList)
 
-##
-# @brief Gets all the classes that the user has passed that fulfill a GE requirement
-# @param user The logged in user
-# @return A Django Queryset of type 'Course' containing all the classes the user has passed
-##
-def getPassedGE(user):
-
-    completedGECourses = TranscriptGrade.objects.filter(transcript=user.student.transcript).filter(GEReqID__isnull=False).filter(grade__in=gradeOrBetter('C-'))
-    return completedGECourses
-
-##
-# @brief Gets all the GE area that the user has not taken, and has not planned to take
-# @param user The logged in user
-# @return A Django Queryset of type 'Course' containing all the classes that fulfill GE requirements that the user has passed
-##
-def getMissingGE(user):
-    completedGECourses = getPassedGE(user)
-    completedGEAreas = completedGECourses.values('GEReqID')
-    GENotCompleted = user.student.catalogue.GEReqs.exclude(reqID__in=completedGEAreas)
-
-    plannedGECourses = PreferredCourse.objects.filter(student=user.student).filter(reqID__isnull=False)
-    plannedGEAreas = plannedGECourses.values('reqID')
-    GENotAccounted = GENotCompleted.exclude(reqID__in=plannedGEAreas)
-
-    return GENotAccounted
-
-    #return querySet
-        # If list is empty, procede
-        # If list is not empty, warn user and do not continue
-
-        # Also can be used on dynamic page as list of preference to fill
-
-##
-# @brief Gets all the tech electives that the user has passed
-# @parm user The logged in user
-# @return  Django Queryset of the tech electives that the user has passed
-##
-def getPassedTech(user):
-
-    completedTechElectives = TranscriptGrade.objects.filter(transcript=user.student.transcript).filter(courseType='Tech Elective').filter(grade__in=gradeOrBetter('C-'))
-    return completedTechElectives
-
-##
-# @brief Gets the number of units worth of tech electives that the user has not taken or plans to take
-# @parma user The logged in user
-# @return The number of units the user needs to schedule/choose
-##
-def getMissingTech(user):
-    numUnitsTaken = 0
-
-    completedTechElectives = getPassedTech(user)
-    for courseGrade in completedTechElectives:
-        numUnitsTaken = numUnitsTaken + courseGrade.course.numUnits
-
-    plannedTechElectives = PreferredCourse.objects.filter(student=user.student).filter(courseType='Tech Elective')
-    for plannedCourse in plannedTechElectives:
-        numUnitsTaken = numUnitsTaken + plannedCourse.course.numUnits
-
-    unitsRequired = user.student.catalogue.techUnits
-    unitsUnaccounted = unitsRequired - numUnitsTaken
-
-    return unitsUnaccounted
-
-    # Return number
-        # If number is zero or negative, continue all classes fulfilled
-        # If posative, do not continue, warn User
-
-        # Can also be used on dynamic page to get number of units needed to select
-
-##
-# @brief Gets all the classes that the user has passed
-# @param user The logged in user
-# @return A Django Queryset of type 'Course' containing all the classes that the user has passed
-def getPassedClasses(user):
-
-    coursesTaken = TranscriptGrade.objects.filter(transcript=user.student.transcript)
-    coursesPassed = Course.objects.none()
-
-    for trGrade in coursesTaken:
-
-        #Check the core classes
-        catGrade = CatalogueGrade.objects.filter(catalogue=user.student.catalogue).filter(course=trGrade.course)
-        if len(catGrade) > 0 and trGrade.grade in gradeOrBetter(catGrade.get().grade):
-            #Is a core class, has a required grade
-            courseQuery = Course.objects.filter(id=catGrade.get().course.id)
-            coursesPassed = (coursesPassed | courseQuery)
-        elif trGrade.grade in gradeOrBetter('C-'):
-            courseQuery = Course.objects.filter(id=trGrade.course.id)
-            coursesPassed = (coursesPassed | courseQuery)
-
-    return coursesPassed
 
 
 
@@ -184,6 +90,7 @@ class Graph:
         self.user = user
 
         self.nodes = dict() #Key = 'CMPE 135', value = Node()
+        self.standby = dict() #Key = 'CMPE 135', value = Node()
         self.rootNodes = set()
         self._createGraph()
 
@@ -205,8 +112,29 @@ class Graph:
 
         for course in toSchedule:
             self._addCourse(course)
+        if len(self.standby) > 0:
+            raise UserWarning("Required Corequisite classes not taken or planned")
 
-        pass
+    def _updateStandby(self,node):
+        for key in list(self.standby.keys()):
+            #Forced to do this way to avoid "Dictionary changed size" error
+            standbyNode = self.standby[key]
+            #Check to see if the new node is a CoReq of any of the listed nodes
+            optCoReqList = standbyNode.SJSUCourse.NOfCoreqs.all()
+            if node not in standbyNode.coReqs and node.SJSUCourse in optCoReqList:
+                numOptCoReq = standbyNode.SJSUCourse.NCoreqs
+                foundCoReqs = 0
+                #Start by finding how many of the items in the coreq list are actually the optional coreqs
+                for coReq in standbyNode.coReqs:
+                    if coReq.SJSUCourse in optCoReqList:
+                        foundCoReqs = foundCoReqs + 1
+
+                #Add the new node to the coreq list
+                standbyNode.coReqs.append(node)
+                foundCoReqs = foundCoReqs + 1
+                #If there are now enough optional coreqs, remove from standby list
+                if foundCoReqs >= numOptCoReq:
+                    self.standby.pop(str(standbyNode))
 
     def _addCourse(self,course):
         if self._userPassed(course):
@@ -216,6 +144,7 @@ class Graph:
         courseNode = Graph.Node()
         #Is course Transfer
         if type(course) == TransferCourse:
+            #TODO: Implement transfer courses
             pass
         else:
             courseNode.SJSUCourse = course
@@ -227,11 +156,24 @@ class Graph:
         #Node isn't in graph, continue
         self.nodes[str(courseNode)] = courseNode
 
+        #Add coreqs to the graph
         for coReq in course.coreqs.all():
             coReqNode = self._addCourse(coReq)
             if coReqNode is not None:
                 courseNode.coReqs.append(coReqNode)
 
+        # Check optional co/prereqs to see if needs to be on standby
+        numOptCoReq = course.NCoreqs
+        if numOptCoReq > 0:
+            foundCoReqs = 0
+            for coReq in course.NOfCoreqs.all():
+                if foundCoReqs < numOptCoReq and str(coReq) in self.nodes and self.nodes[str(coReq)] not in courseNode.coReqs:
+                    courseNode.coReqs.append(self.nodes[str(coReq)])
+                    foundCoReqs = foundCoReqs + 1
+            if foundCoReqs < numOptCoReq:
+                self.standby[str(courseNode)] = courseNode
+
+        #Add prereqs to the map
         if len(course.prereqs.all()) > 0:
             for preReq in course.prereqs.all():
                 preReqNode = self._addCourse(preReq)
@@ -245,6 +187,9 @@ class Graph:
                     isRoot = False
             if isRoot:
                 self.rootNodes.add(courseNode)
+
+        #Now that node is added, update standby nodes in case is optional requirement
+        self._updateStandby(courseNode)
 
         return courseNode
 
@@ -266,7 +211,7 @@ class RoadMapGenerator:
             numUnits = numUnits + courseNode.getNumUnits()
         return numUnits
 
-    def getGen0(self):
+    def getGen0Candidate(self):
         num_semester_left = self.user.student.numYears * 2
 
         roadmap = [[] for y in range(num_semester_left)]
@@ -298,20 +243,33 @@ class RoadMapGenerator:
 
         #TODO: This is very inefficient, try to find better way to do it?
         units_per_semester = max(num_units_left/num_semester_left,16)
+        units_completed = getUnitsTaken(self.user)
         for _pass in range(len(roadmap)):
             #Have to do multiple passes so that classes "Bubble" up to the top
             for i in range(len(roadmap)-1):
                 moveCandidates = []
                 for courseNode in roadmap[i+1]:
                     movable = True
+                    #Check to make sure Pre-Req has been taken beforehand
                     for prereqNode in courseNode.preReqs:
                         if prereqNode in roadmap[i]:
                             movable = False
                             break
+                    #Check to keep Co-Reqs together
                     if len(courseNode.coReqs) > 0:
                         #TODO: Account for moving sets of coreqs,
                         # Currently not accounted for
                         movable = False
+                    #Check to make sure user has enough units
+                    if courseNode.SJSUCourse.unitPrereq > 0:
+                        unitsAtPrevSem = units_completed
+                        #Calculate how many units the student will have going into the previous semester
+                        #TODO: Test this is correct once we have more data
+                        for j in range(0,i-1):
+                            unitsAtPrevSem = units_completed + self.numUnitsInSemester(roadmap[j])
+                        if unitsAtPrevSem < courseNode.SJSUCourse.unitPrereq:
+                            #If they will not have completed enough units to take the class, it can't be moved
+                            movable = False
                     if movable:
                         moveCandidates.append(courseNode)
 
