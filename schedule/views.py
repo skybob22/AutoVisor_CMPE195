@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
-from .models import Post
+from .models import *
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.decorators import login_required
 from .algorithm import generateRoadmap
@@ -101,7 +101,9 @@ def transcript(request):
 def roadmap(request):
 	rp = 'Not Clicked Yet!'
 	if(request.GET.get('print_btn')):
-		rp = generateRoadmap(request.user)
+		semList = generateRoadmap(request.user)
+		student = Student.objects.get(user=request.user)
+		rp = 'Clicked'
 	return render(request, 'schedule/roadmap.html', {'rp': rp})
 
 @login_required

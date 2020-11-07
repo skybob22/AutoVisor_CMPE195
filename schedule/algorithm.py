@@ -28,7 +28,9 @@ def generateRoadmap(user):
     #All classes are accounted for
     courseGraph = Graph(user)
     generator = RoadMapGenerator(user,courseGraph)
-    gen0 = generator.getGen0Candidate()
+
+    tempVar = generator.getRoadmap();
+    return tempVar
 
     #Test return string for testing purposes
     tempStr = 'Your GPA: ' + str(getGPA(user)) + '\n\n'
@@ -45,11 +47,6 @@ def generateRoadmap(user):
     # Run genetic algorithm
     # Save to database
     # Display to user
-
-
-
-
-
 
 
 
@@ -70,7 +67,13 @@ class Graph:
                 return self.SJSUCourse.numUnits
             else:
                 #TODO: Account for transfer courses
-                return 0
+                return None
+
+        def getCourse(self):
+            if self.TransferCourse is None:
+                return self.SJSUCourse
+            else:
+                return None
 
         def __str__(self):
             if self.TransferCourse is not None:
@@ -205,13 +208,13 @@ class RoadMapGenerator:
         self.user = user
         self.graph = graph
 
-    def numUnitsInSemester(self,semesterList):
+    def _numUnitsInSemester(self,semesterList):
         numUnits = 0
         for courseNode in semesterList:
             numUnits = numUnits + courseNode.getNumUnits()
         return numUnits
 
-    def getGen0Candidate(self):
+    def _getGen0Candidate(self):
         num_semester_left = self.user.student.numYears * 2
 
         roadmap = [[] for y in range(num_semester_left)]
@@ -234,6 +237,44 @@ class RoadMapGenerator:
         #Spread out classes across semester
         roadmap = self._distrubuteClasses(roadmap)
         return roadmap
+
+    def getRoadmap(self):
+        gen0 = self._getGen0Candidate()
+        #Do genetic aglroithm stuff with multiple gen 0s
+        self._saveToDB(gen0)
+
+    def _saveToDB(self,semList):
+        student = self.user.student
+
+        if student.roadmap:
+            oldRoadmap = student.roadmap
+            semSchedules = list(oldRoadmap.semesterSchedules.all())
+            for i in range(len(semSchedules)):
+                semSchedule = semSchedules[i]
+                oldRoadmap.semesterSchedules.remove(semSchedule)
+                semSchedule.delete()
+            student.roadmap = None
+            oldRoadmap.delete()
+
+        # Create new roadmap
+        newRoadmap = Roadmap()
+        newRoadmap.save()
+
+        scheduleList = [None] * len(semList)
+        for i in range(len(semList)):
+            #TODO: Fix hardcoded semester
+            scheduleList[i] = SemesterSchedule(term='Fall', year=2020)
+            scheduleList[i].save()
+            for course in semList[i]:
+                pass
+                scheduleList[i].courses.add(course)
+
+        for semSchedule in scheduleList:
+            if semSchedule is not None:
+                newRoadmap.semesterSchedules.add(semSchedule)
+
+        student.roadmap = newRoadmap
+        student.save()
 
     def _distrubuteClasses(self,roadmap):
         num_semester_left = self.user.student.numYears * 2
@@ -266,21 +307,28 @@ class RoadMapGenerator:
                         #Calculate how many units the student will have going into the previous semester
                         #TODO: Test this is correct once we have more data
                         for j in range(0,i-1):
-                            unitsAtPrevSem = units_completed + self.numUnitsInSemester(roadmap[j])
+                            unitsAtPrevSem = units_completed + self._numUnitsInSemester(roadmap[j])
                         if unitsAtPrevSem < courseNode.SJSUCourse.unitPrereq:
                             #If they will not have completed enough units to take the class, it can't be moved
                             movable = False
                     if movable:
                         moveCandidates.append(courseNode)
 
-                while self.numUnitsInSemester(roadmap[i]) < units_per_semester and len(moveCandidates) > 0:
+                while self._numUnitsInSemester(roadmap[i]) < units_per_semester and len(moveCandidates) > 0:
                     index = random.randint(0,len(moveCandidates)-1)
                     candidateNode = moveCandidates[index]
-                    if self.numUnitsInSemester(roadmap[i]) + candidateNode.getNumUnits() <= units_per_semester:
+                    if self._numUnitsInSemester(roadmap[i]) + candidateNode.getNumUnits() <= units_per_semester:
                         roadmap[i].append(candidateNode)
                         roadmap[i+1].remove(candidateNode)
                     moveCandidates.remove(candidateNode)
-        return roadmap
+
+        finalRoadmap = []
+        for semester in roadmap:
+            semesterSchedule = []
+            for course in semester:
+                semesterSchedule.append(course.getCourse())
+            finalRoadmap.append(semesterSchedule)
+        return finalRoadmap
 
     def _traverse(self,node):
         courseList = []

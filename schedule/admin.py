@@ -17,3 +17,6 @@ admin.site.register(Student)
 admin.site.register(Transcript)
 admin.site.register(TranscriptGrade)
 admin.site.register(PreferredCourse)
+
+admin.site.register(Roadmap)
+admin.site.register(SemesterSchedule)
