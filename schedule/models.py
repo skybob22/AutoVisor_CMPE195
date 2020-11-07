@@ -366,7 +366,7 @@ class SemesterSchedule(models.Model):
 
 class Roadmap(models.Model):
 	id = models.AutoField(primary_key=True)
-	semesterSchedules = models.ManyToManyField('SemesterSchedule',symmetrical=True,related_name='From_Roadmap',blank=True)
+	semesterSchedules = models.ManyToManyField('SemesterSchedule',symmetrical=False,related_name='From_Roadmap',blank=True)
 
 	class Meta:
 		#TODO: Figure out how to reference student with symetrical one-to-one
