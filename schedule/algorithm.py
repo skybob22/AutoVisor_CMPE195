@@ -238,10 +238,19 @@ class RoadMapGenerator:
         roadmap = self._distrubuteClasses(roadmap)
         return roadmap
 
-    def getRoadmap(self):
-        gen0 = self._getGen0Candidate()
-        #Do genetic aglroithm stuff with multiple gen 0s
-        self._saveToDB(gen0)
+    def getRoadmap(self,genNew=False,save=True):
+        roadmap = []
+        if genNew or not self.user.student.roadmap:
+            #Generate new roadmap
+            gen0 = self._getGen0Candidate()
+            #Do genetic aglroithm stuff with multiple gen 0s
+            roadmap = gen0
+
+            if save:
+                self._saveToDB(roadmap)
+        else:
+            roadmap = self.user.student.roadmap
+        return roadmap
 
     def _saveToDB(self,semList):
         student = self.user.student
