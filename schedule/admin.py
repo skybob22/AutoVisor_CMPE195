@@ -20,3 +20,4 @@ admin.site.register(PreferredCourse)
 
 admin.site.register(Roadmap)
 admin.site.register(SemesterSchedule)
+admin.site.register(TechElective)
