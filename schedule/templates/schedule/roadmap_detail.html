@@ -1,0 +1,18 @@
+{% extends "schedule/base.html" %}
+{% block content %}
+	<h1>Roadmap Detail Page!</h1>
+	{% for semesterSchedule in roadmap.semesterSchedules %}
+		<div class = "media-body">
+				<h1>{{ roadmap.semesterSchedule.term }}</h1>
+				<h1>{{ roadmap.semesterSchedule.year }}</h1>
+				{% for course in roadmap.semesterSchedules.courses %}
+					<div class = "media-body">
+							<h1>{{ roadmap.semesterSchedule.courses.department }}</h1>
+							<h1>{{ roadmap.semesterSchedule.courses.courseID }}</h1>
+							
+					</div>
+				{% endfor %}
+		</div>
+	{% endfor %}
+
+{% endblock content %}
