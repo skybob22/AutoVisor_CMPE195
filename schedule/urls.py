@@ -13,6 +13,6 @@ urlpatterns = [
     path('transcript/', views.transcript, name='schedule-transcript'),
     path('roadmap/', views.roadmap, name='schedule-roadmap'),
     path('community/', views.community, name='schedule-community'),
-
+    path('roadmap/detail', views.roadmap_detail, name='roadmap-detail'),
 ]
 
