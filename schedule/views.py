@@ -107,5 +107,16 @@ def roadmap(request):
 	return render(request, 'schedule/roadmap.html', {'rp': rp})
 
 @login_required
+def roadmap_detail(request):
+	student = Student.objects.get(user=request.user)
+	roadmap = student.roadmap
+	
+
+	context = {
+		'semSchedules': roadmap.semesterSchedules.all()
+	}
+	return render(request, 'schedule/roadmap_detail.html', context)
+
+@login_required
 def community(request):
 	return render(request, 'schedule/community.html', {'title': 'Roadmap'})

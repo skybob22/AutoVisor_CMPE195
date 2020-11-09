@@ -1,14 +1,13 @@
 {% extends "schedule/base.html" %}
 {% block content %}
 	<h1>Roadmap Detail Page!</h1>
-	{% for semesterSchedule in roadmap.semesterSchedules %}
+	{% for semSchedule in semSchedules %}
 		<div class = "media-body">
-				<h1>{{ roadmap.semesterSchedule.term }}</h1>
-				<h1>{{ roadmap.semesterSchedule.year }}</h1>
-				{% for course in roadmap.semesterSchedules.courses %}
+				<h1>{{ semSchedule.term }} {{ semSchedule.year }}</h1>
+				
+				{% for course in semSchedule.courses.all %}
 					<div class = "media-body">
-							<h1>{{ roadmap.semesterSchedule.courses.department }}</h1>
-							<h1>{{ roadmap.semesterSchedule.courses.courseID }}</h1>
+							<h1>{{ course.department }} {{ course.courseID }}</h1>
 							
 					</div>
 				{% endfor %}
