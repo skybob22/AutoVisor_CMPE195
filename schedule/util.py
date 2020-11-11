@@ -83,6 +83,9 @@ def getMissingGE(user):
     plannedGEAreas = plannedGECourses.values('reqID')
     GENotAccounted = GENotCompleted.exclude(reqID__in=plannedGEAreas)
 
+    #TODO: Account for single-requirement GE, like Area B, C, etc.
+    # Then check for multi-area. Has "C1 AND C2" been completed?
+
     return GENotAccounted
 
     #return querySet
