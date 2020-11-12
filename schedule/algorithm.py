@@ -29,12 +29,8 @@ def generateRoadmap(user):
     courseGraph = Graph(user)
     generator = RoadMapGenerator(user,courseGraph)
 
-    tempVar = generator.getRoadmap();
-    return tempVar
-
-    # Run genetic algorithm
-    # Save to database
-    # Display to user
+    roadmap = generator.getRoadmap();
+    return roadmap
 
 
 
@@ -196,7 +192,14 @@ class RoadMapGenerator:
         def __init__(self,numSemesters):
             #Speed is more important that memory usage, use two dictionaries for fast lookup
             self.courseDict = dict() #Dictioanry of <courseNode,semester>
-            self.roadmap = [[] for _ in range(numSemesters)]
+            self.roadmap = [dict() for _ in range(numSemesters)] #Used as orderd set of nodes, value is set to None
+
+        def swapSemesters(self,sem1,sem2):
+            for course in self.roadmap[sem1]:
+                self.courseDict[course] = sem2
+            for course in self.roadmap[sem2]:
+                self.courseDict[course] = sem1
+            self.roadmap[sem1], self.roadmap[sem2] = self.roadmap[sem2], self.roadmap[sem1]
 
         def getNumSemesters(self):
             return len(self.roadmap)
@@ -213,19 +216,20 @@ class RoadMapGenerator:
             if node in self.courseDict:
                 nodeOverwritten = True
                 semToRemove = self.courseDict[node]
-                self.roadmap[semToRemove].remove(node)
+                self.roadmap[semToRemove].pop(node)
             self.courseDict[node] = semester
-            self.roadmap[semester].append(node)
+            self.roadmap[semester][node] = None
             return nodeOverwritten
 
         def getNodeRoadmap(self):
+            roadmap = [None for _ in range(len(self.roadmap))]
             for i in range(len(self.roadmap)):
-                self.roadmap[i].sort(key=str)
-            return self.roadmap
+                #self.roadmap[i].sort(key=str)
+                roadmap[i] = [node for node in self.roadmap[i]]
+            return roadmap
 
         def getNodeSemester(self,semester):
-            self.roadmap[semester].sort(key=str)
-            return self.roadmap[semester]
+            return [node for node in self.roadmap[semester]]
 
         def getSemesterTaken(self,node):
             if node in self.courseDict:
@@ -257,6 +261,9 @@ class RoadMapGenerator:
                 numUnits += courseNode.getNumUnits()
             return numUnits
 
+        def coursesInSemester(self,semester):
+            return len(self.roadmap[semester])
+
         def unitsUptoSemester(self,semester):
             numUnits = 0
             for i in range(semester+1):
@@ -266,7 +273,6 @@ class RoadMapGenerator:
         def getCourseRoadmap(self):
             courses = [[] for _ in range(len(self.roadmap))]
             for i in range(len(self.roadmap)):
-                self.roadmap[i].sort(key=str)
                 courses[i] = [course.getCourse() for course in self.roadmap[i]]
             return courses
 
@@ -375,6 +381,8 @@ class RoadMapGenerator:
         return roadmap
 
     def getRoadmap(self,genNew=False,save=True):
+        #TODO: Remove this
+        # Tempory for development
         genNew = True
         save = False
 
@@ -382,9 +390,13 @@ class RoadMapGenerator:
         if genNew or not self.user.student.roadmap:
             #Generate new roadmap
             gen0 = self._getGen0Candidate()
-            #Do genetic aglroithm stuff with multiple gen 0s
-            testVar = self._geneticAlgorithm()
             roadmap = gen0
+
+            #Do genetic aglroithm
+            newRoadmap = self._geneticAlgorithm().getCourseRoadmap()
+
+            #TODO: Remove any empty semesters
+            # And switch to returning genetic result
 
             #Extract the roadmap of actual classes instead of nodes
             roadmap = roadmap.getCourseRoadmap()
@@ -436,26 +448,62 @@ class RoadMapGenerator:
 
 
     def _geneticAlgorithm(self):
-        pass
         # Run genetic algorithm (requires fitness function)
         # Optimizes array of arrays to be better
         # (Tentative) ex. min 20 generations & fitness above 85%
 
-        startingPopulation =[self._getGen0Candidate() for _ in range(10)]
+        #Define parameters here
+        NUM_GENERATIONS = 120
+        POPULATION_SIZE = 20
+        MUTATION_PROBABILITY = 5
+        SURVIVAL_RATE = 0.55 #This many organisms will be left at the end of each round
+        SAFETY = True #Prevents the highest N fitness oganism(s) from mutating. Should ensure at least 1 valid result
 
-        v1 = self._isViable(startingPopulation[0])
-        v2 = self._isViable(startingPopulation[1])
+        #TODO: Tune parameters and change mutation function, maybe change offspring
+        # Tradeoff for population size vs # of generations
+        # If all valid organisms mutate to be invalid, there is practically no chance of success
 
-        res1 = self._createChild((startingPopulation[0],startingPopulation[1])).getCourseRoadmap()
-        res2 = self._createChild((startingPopulation[1], startingPopulation[2])).getCourseRoadmap()
-        res3 = self._createChild((startingPopulation[2], startingPopulation[3])).getCourseRoadmap()
-        print('hi')
+        #Population consists of list [Organism, fitness, generation] for tracking purposes
+        population =[[self._getGen0Candidate(),0,0] for _ in range(POPULATION_SIZE)]
+        for i in range(len(population)):
+            population[i][1] = self._fitnessFunction(population[i][0])
 
-    def _isViable(self,roadmap):
+        for gen in range(NUM_GENERATIONS):
+            #TDOD: Try to parallelize anything (fitness function?) if possible?
+
+            #Sort the list based on the fitness
+            population.sort(key=lambda tup: tup[1])
+
+            #Kill off the least fit individuals
+            newSize = int(POPULATION_SIZE * SURVIVAL_RATE)
+            population = population[newSize::]
+
+            #Some organisms may mutate
+            for i in range(len(population)-int(SAFETY)):
+                if random.randrange(0,100) <= MUTATION_PROBABILITY:
+                    self._mutate(population[i][0])
+                    population[i][1] = self._fitnessFunction(population[i][0])
+
+            #The remaining individuals reproduce
+            #TODO: Out of the entire genetic algorithm, this takes the longest.
+            # Focus any optimizations here
+            for i in range(POPULATION_SIZE - len(population)):
+                organism1 = random.randrange(0,len(population))
+                organism2 = random.choice([j for j in range(len(population)) if j != organism1])
+                child = self._createChild((population[organism1][0],population[organism2][0]))
+                population.append([child,self._fitnessFunction(child),gen])
+
+        #Get the most fit individual from the last generation
+        population.sort(key=lambda tup: tup[1])
+        bestResult = population[-1]
+
+        return bestResult[0]
+
+    def _isViable(self,organism):
         #Get the list of all courses from the graph
         courseDict = dict(self.graph.nodes)
 
-        listLayout = roadmap.getNodeRoadmap()
+        listLayout = organism.getNodeRoadmap()
         for i in range(len(listLayout)):
             for j in range(len(listLayout[i])):
                 node = listLayout[i][j]
@@ -467,19 +515,19 @@ class RoadMapGenerator:
                 #Check that prereqs will be completed
                 if node.preReqs:
                     a = str(node)
-                    if roadmap.maxPrereqSemester(node) is None:
+                    if organism.maxPrereqSemester(node) is None:
                         #Prereqs are not completed/present at all
                         return False
-                    elif roadmap.maxPrereqSemester(node) >= i:
+                    elif organism.maxPrereqSemester(node) >= i:
                         #Prereqs are not all finished before semester starts
                         return False
 
                 #Check that coreqs will be completed
                 if node.coReqs:
-                    if roadmap.maxCoreqSemester(node) is None:
+                    if organism.maxCoreqSemester(node) is None:
                         #Coreqs are not scheduled at all
                         return False
-                    elif roadmap.maxCoreqSemester(node) > i:
+                    elif organism.maxCoreqSemester(node) > i:
                         #Coreqs are scheduled after course is taken
                         return False
 
@@ -491,26 +539,95 @@ class RoadMapGenerator:
         #Too many units in certain semester: max 17 for first several semester, 19 later? Petition for up to 21?
         #Doesn't graduate on time?
 
-    def _fitnessFunction(self,roadmap):
-        pass
-        #TODO Define user preferences and friend list
+    def _fitnessFunction(self,organism):
+        score = 0
 
+        #TODO Define user preferences and friend list
         #Factors to grade on...
             #User preferences
             #Courses with friends
-            #Number of courses/units in a semester
+            #Number of courses/units in a semester <- Should allow user to control?
+        # Maybe?
+            # Balance of core/GEs in a semester (light weight)
+            # Graduates in time?
 
-            #Maybe?
-            #Balance of core/GEs in a semester (light weight)
+        #Check the average number of units in a semester
+        unitResult=0
+        courseResult = 0
 
-    def _generateNextGen(self):
-        pass
+        #Delcare the weights (good/bad) for number of units in a single semester
+        UNIT_MAP = dict()
+        for i in range(0,1): UNIT_MAP[i] = 0.5
+        for i in range(1, 7): UNIT_MAP[i] = 0.5
+        for i in range(7, 12): UNIT_MAP[i] = 0.5
+        for i in range(12, 17): UNIT_MAP[i] = 0.5
+        for i in range(17, 20): UNIT_MAP[i] = 0.5
 
-    def _mutate(self,roadmap):
-        pass
+        #Delcare weights of (good/bad) for number of courses in a single semester
+        COURSE_MAP = {
+            0:0.5,
+            1:0.3,
+            2:0.4,
+            3:0.8,
+            4:1,
+            5:0.8,
+            6:0.3,
+            7:0.1
+        }
 
+        for i in range(organism.getNumSemesters()):
+            numUnits = organism.unitsInSemester(i)
+            numCourses = organism.coursesInSemester(i)
+
+            if numUnits in UNIT_MAP:
+                unitResult += UNIT_MAP[numUnits]
+
+            if numCourses in COURSE_MAP:
+                courseResult += COURSE_MAP[numCourses]
+        unitResult /= organism.getNumSemesters()
+        courseResult /= organism.getNumSemesters()
+
+        #Check if the roadmap is vaiable or not, if not heavily penalize it
+        viability = int(not self._isViable(organism))
+
+        #Score +-= [weight] * [result: range of 0-1], + are things we want to maximize, - are things to minimize
+        # Calculate score based on results and relative weights
+        score -= 10 * viability
+        score += 5 * unitResult
+        score += 2 * courseResult
+        return score
+
+    #TODO: Improve _mutate function to change oragnisms in a more useful way
+    def _mutate(self,organism):
+        #Define parameters here
+        SEMESTER_SWAP_PROBABILITY = 100
+        NUM_CLASSES_TO_MOVE = random.randrange(1,5)
+
+        seed = random.randrange(0,100)
+        #Chance to swap random courses between semesters
+        if seed > SEMESTER_SWAP_PROBABILITY:
+            for _ in range(NUM_CLASSES_TO_MOVE):
+                semester = random.randrange(0,organism.getNumSemesters())
+                courses = organism.getNodeSemester(semester)
+                if len(courses) > 0:
+                    course = random.choice(courses)
+                    randSemester = random.randrange(0,organism.getNumSemesters())
+                    organism.placeCourse(course,randSemester)
+        #Smaller chance to swap entire semester
+        elif seed <= SEMESTER_SWAP_PROBABILITY:
+            #Choose 2 semesters to swap
+            sem1 = random.randrange(0,organism.getNumSemesters())
+            sem2 = random.choice([i for i in range(0,organism.getNumSemesters()) if i != sem1])
+            organism.swapSemesters(sem1,sem2)
+
+    #TODO: Improve _createChild to create better organism...
+    # See brainstorming discord channel
     def _createChild(self,parents):
-        while True:
+        #If child is not viable, will retry up to MAX_TRIES times
+        MAX_TRIES = 3
+
+        tries = 0
+        while tries < MAX_TRIES:
             child = self.CourseTracker(parents[0].getNumSemesters())
             for i in range(child.getNumSemesters()):
 
@@ -528,6 +645,7 @@ class RoadMapGenerator:
                         inheritID = 1-inheritID
                     child.placeCourse(parentCourses[inheritID][j],i)
 
+            tries += 1
             testBool = self._isViable(child)
             if testBool:
                 break
