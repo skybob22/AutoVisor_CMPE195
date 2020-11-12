@@ -14,5 +14,6 @@ urlpatterns = [
     path('roadmap/', views.roadmap, name='schedule-roadmap'),
     path('community/', views.community, name='schedule-community'),
     path('roadmap/detail', views.roadmap_detail, name='roadmap-detail'),
+    path('transcript/detail', views.transcript_detail, name='transcript-detail'),
 ]
 

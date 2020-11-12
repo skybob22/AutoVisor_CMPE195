@@ -1,0 +1,10 @@
+{% extends "schedule/base.html" %}
+{% block content %}
+	<h1>Transcript Detail Page!</h1>
+	{% for transcriptGrade in transcriptGrades %}
+		<div class = "media-body">
+				<h1>{{ transcriptGrade.course.department }} {{ transcriptGrade.course.courseID }} {{ transcriptGrade.grade }}</h1>
+		</div>
+	{% endfor %}
+
+{% endblock content %}
