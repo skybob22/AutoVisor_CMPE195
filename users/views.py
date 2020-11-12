@@ -48,12 +48,25 @@ def student(request):
 		obj.save()
 		transcript = Transcript()
 		transcript.save()
-		student = Student.objects.get(user=request.user)
-		student.transcript = transcript
+		obj.transcript = transcript
+		obj.save()
+		messages.success(request, f'You Student Information has been created!')
+
+	u_form = StudentUpdateForm(request.POST, instance=request.user.student)
+	if u_form.is_valid():
+		update = u_form.save()
+		update.save()
 		messages.success(request, f'You Student Information has been updated!')
 
+	student = Student.objects.get(user=request.user)
+	student_exists = 0
+	if student:
+		student_exists = 1
+
 	context = {
-		's_form': s_form
+		's_form': s_form ,
+		'u_form': u_form, 
+		'key': student_exists
 	}
 
 	

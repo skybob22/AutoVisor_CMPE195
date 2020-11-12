@@ -31,5 +31,11 @@ class StudentInfoForm(forms.ModelForm):
 	class Meta:
 		model = Student
 		fields = ['studentID', 'catalogue']
+
+class StudentUpdateForm(forms.ModelForm):
+
+	class Meta:
+		model = Student
+		fields = ['catalogue']
 		
 
