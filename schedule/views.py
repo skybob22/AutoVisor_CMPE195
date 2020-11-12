@@ -117,6 +117,16 @@ def roadmap_detail(request):
 	}
 	return render(request, 'schedule/roadmap_detail.html', context)
 
+def transcript_detail(request):
+	student = Student.objects.get(user=request.user)
+	transcript = student.transcript
+	transcriptGrade = TranscriptGrade.objects.filter(transcript=transcript)
+
+	context = {
+		'transcriptGrades': transcriptGrade
+	}
+	return render(request, 'schedule/transcript_detail.html', context)
+
 @login_required
 def community(request):
 	return render(request, 'schedule/community.html', {'title': 'Roadmap'})

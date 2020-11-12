@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .forms import *
-from schedule.models import Student
+from schedule.models import Student, Transcript
 
 
 # Create your views here.
@@ -46,6 +46,10 @@ def student(request):
 		obj = s_form.save()
 		obj.user = request.user
 		obj.save()
+		transcript = Transcript()
+		transcript.save()
+		student = Student.objects.get(user=request.user)
+		student.transcript = transcript
 		messages.success(request, f'You Student Information has been updated!')
 
 	context = {
