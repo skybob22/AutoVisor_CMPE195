@@ -1,5 +1,8 @@
 from .models import *
 from .util import *
+from .graph import CourseNode, Graph
+from .genetic import GeneticSimulation
+
 import random
 import time
 
@@ -36,160 +39,6 @@ def generateRoadmap(user):
     end = time.time()
     print("Everything took {0:.2f}s".format(end-start))
     return roadmap
-
-
-
-class Graph:
-    class Node:
-        def __init__(self):
-            self.preReqs = []
-            self.coReqs = []
-            self.postReqs = []
-
-            self.SJSUCourse = None
-            self.TransferCourse = None
-
-            self.max_sem_level = None
-
-        def getNumUnits(self):
-            if self.TransferCourse is None:
-                return self.SJSUCourse.numUnits
-            else:
-                #TODO: Account for transfer courses
-                return None
-
-        def getCourse(self):
-            if self.TransferCourse is None:
-                return self.SJSUCourse
-            else:
-                return None
-
-        def __str__(self):
-            if self.TransferCourse is not None:
-                return str(self.TransferCourse)
-            elif self.SJSUCourse is not None:
-                return str(self.SJSUCourse)
-            else:
-                return 'No Course Available'
-
-        def __eq__(self,other):
-            return self.SJSUCourse.id == other.SJSUCourse.id
-
-        def __hash__(self):
-            return hash(str(self.SJSUCourse))
-
-    def __init__(self,user):
-        self.user = user
-
-        self.nodes = dict() #Key = 'CMPE 135', value = Node()
-        self.standby = dict() #Key = 'CMPE 135', value = Node()
-        self.rootNodes = set()
-        self._createGraph()
-
-    def _createGraph(self):
-        pass
-        # Grab all classes in the catalogue (copy of list)?
-        # Add on to list with GEs and Tech electives
-
-        passedClasses = getPassedClasses(self.user)
-        self.passedClasses = passedClasses
-
-        coreToTake = self.user.student.catalogue.courses.exclude(id__in=passedClasses.values('id'))
-        optionalToTake = self.user.student.prefCourseList.exclude(id__in=passedClasses.values('id'))
-
-        #Combine list to get all the courses to take, discarding duplicates
-        toSchedule = (coreToTake | (optionalToTake.exclude(id__in=coreToTake.values('id'))))
-
-        # Check courses from transfer that articulate
-
-        for course in toSchedule:
-            self._addCourse(course)
-        if len(self.standby) > 0:
-            raise UserWarning("Required Corequisite classes not taken or planned")
-
-    def _updateStandby(self,node):
-        for key in list(self.standby.keys()):
-            #Forced to do this way to avoid "Dictionary changed size" error
-            standbyNode = self.standby[key]
-            #Check to see if the new node is a CoReq of any of the listed nodes
-            optCoReqList = standbyNode.SJSUCourse.NOfCoreqs.all()
-            if node not in standbyNode.coReqs and node.SJSUCourse in optCoReqList:
-                numOptCoReq = standbyNode.SJSUCourse.NCoreqs
-                foundCoReqs = 0
-                #Start by finding how many of the items in the coreq list are actually the optional coreqs
-                for coReq in standbyNode.coReqs:
-                    if coReq.SJSUCourse in optCoReqList:
-                        foundCoReqs = foundCoReqs + 1
-
-                #Add the new node to the coreq list
-                standbyNode.coReqs.append(node)
-                foundCoReqs = foundCoReqs + 1
-                #If there are now enough optional coreqs, remove from standby list
-                if foundCoReqs >= numOptCoReq:
-                    self.standby.pop(standbyNode)
-
-    def _addCourse(self,course):
-        if self._userPassed(course):
-            return None
-
-        #Create new node
-        courseNode = Graph.Node()
-        #Is course Transfer
-        if type(course) == TransferCourse:
-            #TODO: Implement transfer courses
-            pass
-        else:
-            courseNode.SJSUCourse = course
-
-        #Check if node already exists
-        if courseNode in self.nodes:
-            return self.nodes[courseNode]
-
-        #Node isn't in graph, continue
-        self.nodes[courseNode] = courseNode
-
-        #Add coreqs to the graph
-        for coReq in course.coreqs.all():
-            coReqNode = self._addCourse(coReq)
-            if coReqNode is not None:
-                courseNode.coReqs.append(coReqNode)
-
-        # Check optional co/prereqs to see if needs to be on standby
-        numOptCoReq = course.NCoreqs
-        if numOptCoReq > 0:
-            foundCoReqs = 0
-            for coReq in course.NOfCoreqs.all():
-                if foundCoReqs < numOptCoReq and coReq in self.nodes and self.nodes[coReq] not in courseNode.coReqs:
-                    courseNode.coReqs.append(self.nodes[coReq])
-                    foundCoReqs = foundCoReqs + 1
-            if foundCoReqs < numOptCoReq:
-                self.standby[courseNode] = courseNode
-
-        #Add prereqs to the map
-        if len(course.prereqs.all()) > 0:
-            for preReq in course.prereqs.all():
-                preReqNode = self._addCourse(preReq)
-                if preReqNode is not None:
-                    courseNode.preReqs.append(preReqNode)
-                    preReqNode.postReqs.append(courseNode)
-        else:
-            isRoot = True
-            for coReq in courseNode.coReqs:
-                if coReq not in self.rootNodes:
-                    isRoot = False
-            if isRoot:
-                self.rootNodes.add(courseNode)
-
-        #Now that node is added, update standby nodes in case is optional requirement
-        self._updateStandby(courseNode)
-
-        return courseNode
-
-    def _userPassed(self,course):
-        return len(self.passedClasses.filter(id=course.id)) > 0
-
-
-
 
 
 class RoadMapGenerator:
@@ -373,9 +222,6 @@ class RoadMapGenerator:
                     if movable:
                         moveCandidates.append(courseNode)
 
-                d1 = len(moveCandidates) > 0
-                d2 = roadmap.unitsInSemester(i-1) < unitsPerSemester
-
                 while len(moveCandidates) > 0 and roadmap.unitsInSemester(i-1) < unitsPerSemester:
                     index = random.randrange(0,len(moveCandidates))
                     candidateNode = moveCandidates[index]
@@ -448,104 +294,44 @@ class RoadMapGenerator:
 
 
 
-
-    class populationPool:
-
-        def __init__(self,fitnessFunction):
-            self.fitnessFunction = fitnessFunction
-            self.population = []
-            self.generation = 0
-
-        def addOrangism(self,organism):
-            self.population.append([organism,self.fitnessFunction(organism),self.generation])
-
-        def getOrgansim(self,orgIndex):
-            return self.population[orgIndex][0]
-
-        def getPopulationSize(self):
-            return len(self.population)
-
-        def recalculate(self,orgIndex):
-            self.population[orgIndex][1] = self.fitnessFunction(self.population[orgIndex][0])
-
-        def removeOrganisms(self,number):
-            self._sortPopulation()
-            newSize = int(len(self.population) - number)
-            self.population = self.population[newSize::]
-            self.generation = self.generation+1 #After culling, new organisms are next generation
-
-        def _sortPopulation(self):
-            self.population.sort(key = lambda tup: tup[1])
-
-        def getMostFit(self):
-            self._sortPopulation()
-            return self.population[-1][0]
-
-
     def _geneticAlgorithm(self):
-        # Run genetic algorithm (requires fitness function)
-        # Optimizes array of arrays to be better
-        # (Tentative) ex. min 20 generations & fitness above 85%
-
-        #Define parameters here
-        NUM_GENERATIONS = 120
-        POPULATION_SIZE = 20
-        MUTATION_PROBABILITY = 5
-        SURVIVAL_RATE = 0.55 #This many organisms will be left at the end of each round
-        SAFETY = True #Prevents the highest N fitness oganism(s) from mutating. Should ensure at least 1 valid result
-
         start = time.time()
-        #TODO: Tune parameters and change mutation function, maybe change offspring
-        # Tradeoff for population size vs # of generations
-        # If all valid organisms mutate to be invalid, there is practically no chance of success
+        sim = GeneticSimulation(gen0Function=self._getGen0Candidate,
+                              fitnessFunction=self._fitnessFunction,
+                              childFuntion=self._createChild,
+                              mutationFunction=self._mutate)
 
-        population = self.populationPool(self._fitnessFunction)
-        for _ in range(POPULATION_SIZE):
-            population.addOrangism(self._getGen0Candidate())
+        sim.setParameters(populationSize=20,
+                        numGenerations=120,
+                        mutationProbability=0.05,
+                        survivalRate=0.55,
+                        safteyMargin=1)
 
-        for _ in range(NUM_GENERATIONS):
-            #Kill off the least fit individuals
-            population.removeOrganisms(POPULATION_SIZE*(1-SURVIVAL_RATE))
-
-            #Some organisms may mutate
-            for i in range(population.getPopulationSize()-int(SAFETY)):
-                if random.randint(0,100) <= MUTATION_PROBABILITY:
-                    self._mutate(population.getOrgansim(i))
-                    population.recalculate(i) #If organism changed, fitness needs to be recalcilated
-
-            #The remaining individuals reproduce
-            #TODO: Out of the entire genetic algorithm, this takes the longest.
-            # Focus optimizations here
-            currentPopulation = population.getPopulationSize()
-            for i in range(POPULATION_SIZE-currentPopulation):
-                org1 = random.randrange(0,currentPopulation)
-                org2 = random.choice([j for j in range(currentPopulation) if j != org1])
-                population.addOrangism(self._createChild((population.getOrgansim(org1),population.getOrgansim(org2))))
-
-        #TODO: Remove timer
+        sim.runSimulation()
         end = time.time()
-        print("Genetic Algorithm took: {0:.2f}s".format(end - start))
-        return population.getMostFit()
+        print("Genetic Algorithm took {0:.2f}s".format(end-start))
+        return sim.getResult()
 
+    #=====Define functions used by genetic algorithm=====#
     def _isViable(self,organism):
         #We aren't adding/removeing courses, only reordering
         #If number of courses is different, classes are likely missing
         if len(organism.courseDict) != len(self.graph.nodes):
-            return False
+            return 0
 
         for node,semester in organism.courseDict.items():
                 #Check that prereqs will be completed
                 if node.preReqs:
                     if organism.maxPrereqSemester(node) >= semester:
                         #Prereqs are not all finished before semester starts
-                        return False
+                        return 0.1
 
                 #Check that coreqs will be completed
                 if node.coReqs:
                     if organism.maxCoreqSemester(node) > semester:
                         #Coreqs are scheduled after course is taken
-                        return False
-        return True
+                        return 0.2
+        return 1
 
         #Too many units in certain semester: max 17 for first several semester, 19 later? Petition for up to 21?
         #Doesn't graduate on time?
@@ -599,11 +385,11 @@ class RoadMapGenerator:
         courseResult /= organism.getNumSemesters()
 
         #Check if the roadmap is vaiable or not, if not heavily penalize it
-        viability = int(not self._isViable(organism))
+        viability = self._isViable(organism)
 
         #Score +-= [weight] * [result: range of 0-1], + are things we want to maximize, - are things to minimize
         # Calculate score based on results and relative weights
-        score -= 10 * viability
+        score -= 10 * (1 - viability)
         score += 5 * unitResult
         score += 2 * courseResult
         return score
@@ -611,19 +397,17 @@ class RoadMapGenerator:
     #TODO: Improve _mutate function to change oragnisms in a more useful way
     def _mutate(self,organism):
         #Define parameters here
-        SEMESTER_SWAP_PROBABILITY = 100
+        SEMESTER_SWAP_PROBABILITY = 5
         NUM_CLASSES_TO_MOVE = random.randint(1,5)
 
         seed = random.randint(0,100)
         #Chance to swap random courses between semesters
         if seed > SEMESTER_SWAP_PROBABILITY:
             for _ in range(NUM_CLASSES_TO_MOVE):
-                semester = random.randrange(0,organism.getNumSemesters())
-                courses = organism.getNodeSemester(semester)
-                if len(courses) > 0:
-                    course = random.choice(courses)
-                    randSemester = random.randrange(0,organism.getNumSemesters())
-                    organism.placeCourse(course,randSemester)
+                course = random.choice(list(organism.courseDict.keys()))
+                randSemester = random.randrange(0,organism.getNumSemesters())
+                organism.placeCourse(course,randSemester)
+
         #Smaller chance to swap entire semester
         elif seed <= SEMESTER_SWAP_PROBABILITY:
             #Choose 2 semesters to swap
@@ -647,7 +431,7 @@ class RoadMapGenerator:
                 child.placeCourse(course,parents[parentToInherit].courseDict[course])
 
             tries += 1
-            childIsViable = self._isViable(child)
-            if childIsViable:
+            childViability = self._isViable(child)
+            if childViability == 1:
                 break
         return child
