@@ -1,6 +1,7 @@
 from .models import *
 from .util import *
 import random
+import time
 
 
 
@@ -26,10 +27,14 @@ def generateRoadmap(user):
     missingTech = getMissingTech(user)
 
     #All classes are accounted for
+    start = time.time()
     courseGraph = Graph(user)
     generator = RoadMapGenerator(user,courseGraph)
-
     roadmap = generator.getRoadmap();
+
+    # TODO: Remove timer
+    end = time.time()
+    print("Everything took {0:.2f}s".format(end-start))
     return roadmap
 
 
@@ -277,7 +282,7 @@ class RoadMapGenerator:
             return courses
 
 
-
+    #Roadmap Generator
     def __init__(self,user,graph):
         self.user = user
         self.graph = graph
@@ -372,7 +377,7 @@ class RoadMapGenerator:
                 d2 = roadmap.unitsInSemester(i-1) < unitsPerSemester
 
                 while len(moveCandidates) > 0 and roadmap.unitsInSemester(i-1) < unitsPerSemester:
-                    index = random.randint(0,len(moveCandidates)-1)
+                    index = random.randrange(0,len(moveCandidates))
                     candidateNode = moveCandidates[index]
                     if roadmap.unitsInSemester(i-1) + candidateNode.getNumUnits() <= unitsPerSemester:
                         roadmap.placeCourse(candidateNode,i-1)
@@ -444,7 +449,37 @@ class RoadMapGenerator:
 
 
 
+    class populationPool:
 
+        def __init__(self,fitnessFunction):
+            self.fitnessFunction = fitnessFunction
+            self.population = []
+            self.generation = 0
+
+        def addOrangism(self,organism):
+            self.population.append([organism,self.fitnessFunction(organism),self.generation])
+
+        def getOrgansim(self,orgIndex):
+            return self.population[orgIndex][0]
+
+        def getPopulationSize(self):
+            return len(self.population)
+
+        def recalculate(self,orgIndex):
+            self.population[orgIndex][1] = self.fitnessFunction(self.population[orgIndex][0])
+
+        def removeOrganisms(self,number):
+            self._sortPopulation()
+            newSize = int(len(self.population) - number)
+            self.population = self.population[newSize::]
+            self.generation = self.generation+1 #After culling, new organisms are next generation
+
+        def _sortPopulation(self):
+            self.population.sort(key = lambda tup: tup[1])
+
+        def getMostFit(self):
+            self._sortPopulation()
+            return self.population[-1][0]
 
 
     def _geneticAlgorithm(self):
@@ -459,81 +494,57 @@ class RoadMapGenerator:
         SURVIVAL_RATE = 0.55 #This many organisms will be left at the end of each round
         SAFETY = True #Prevents the highest N fitness oganism(s) from mutating. Should ensure at least 1 valid result
 
+        start = time.time()
         #TODO: Tune parameters and change mutation function, maybe change offspring
         # Tradeoff for population size vs # of generations
         # If all valid organisms mutate to be invalid, there is practically no chance of success
 
-        #Population consists of list [Organism, fitness, generation] for tracking purposes
-        population =[[self._getGen0Candidate(),0,0] for _ in range(POPULATION_SIZE)]
-        for i in range(len(population)):
-            population[i][1] = self._fitnessFunction(population[i][0])
+        population = self.populationPool(self._fitnessFunction)
+        for _ in range(POPULATION_SIZE):
+            population.addOrangism(self._getGen0Candidate())
 
-        for gen in range(NUM_GENERATIONS):
-            #TDOD: Try to parallelize anything (fitness function?) if possible?
-
-            #Sort the list based on the fitness
-            population.sort(key=lambda tup: tup[1])
-
+        for _ in range(NUM_GENERATIONS):
             #Kill off the least fit individuals
-            newSize = int(POPULATION_SIZE * SURVIVAL_RATE)
-            population = population[newSize::]
+            population.removeOrganisms(POPULATION_SIZE*(1-SURVIVAL_RATE))
 
             #Some organisms may mutate
-            for i in range(len(population)-int(SAFETY)):
-                if random.randrange(0,100) <= MUTATION_PROBABILITY:
-                    self._mutate(population[i][0])
-                    population[i][1] = self._fitnessFunction(population[i][0])
+            for i in range(population.getPopulationSize()-int(SAFETY)):
+                if random.randint(0,100) <= MUTATION_PROBABILITY:
+                    self._mutate(population.getOrgansim(i))
+                    population.recalculate(i) #If organism changed, fitness needs to be recalcilated
 
             #The remaining individuals reproduce
             #TODO: Out of the entire genetic algorithm, this takes the longest.
-            # Focus any optimizations here
-            for i in range(POPULATION_SIZE - len(population)):
-                organism1 = random.randrange(0,len(population))
-                organism2 = random.choice([j for j in range(len(population)) if j != organism1])
-                child = self._createChild((population[organism1][0],population[organism2][0]))
-                population.append([child,self._fitnessFunction(child),gen])
+            # Focus optimizations here
+            currentPopulation = population.getPopulationSize()
+            for i in range(POPULATION_SIZE-currentPopulation):
+                org1 = random.randrange(0,currentPopulation)
+                org2 = random.choice([j for j in range(currentPopulation) if j != org1])
+                population.addOrangism(self._createChild((population.getOrgansim(org1),population.getOrgansim(org2))))
 
-        #Get the most fit individual from the last generation
-        population.sort(key=lambda tup: tup[1])
-        bestResult = population[-1]
-
-        return bestResult[0]
+        #TODO: Remove timer
+        end = time.time()
+        print("Genetic Algorithm took: {0:.2f}s".format(end - start))
+        return population.getMostFit()
 
     def _isViable(self,organism):
-        #Get the list of all courses from the graph
-        courseDict = dict(self.graph.nodes)
+        #We aren't adding/removeing courses, only reordering
+        #If number of courses is different, classes are likely missing
+        if len(organism.courseDict) != len(self.graph.nodes):
+            return False
 
-        listLayout = organism.getNodeRoadmap()
-        for i in range(len(listLayout)):
-            for j in range(len(listLayout[i])):
-                node = listLayout[i][j]
-
-                #Remove node from courses list to indicate that we've seen it
-                if node in courseDict:
-                    courseDict.pop(node)
-
+        for node,semester in organism.courseDict.items():
                 #Check that prereqs will be completed
                 if node.preReqs:
-                    a = str(node)
-                    if organism.maxPrereqSemester(node) is None:
-                        #Prereqs are not completed/present at all
-                        return False
-                    elif organism.maxPrereqSemester(node) >= i:
+                    if organism.maxPrereqSemester(node) >= semester:
                         #Prereqs are not all finished before semester starts
                         return False
 
                 #Check that coreqs will be completed
                 if node.coReqs:
-                    if organism.maxCoreqSemester(node) is None:
-                        #Coreqs are not scheduled at all
-                        return False
-                    elif organism.maxCoreqSemester(node) > i:
+                    if organism.maxCoreqSemester(node) > semester:
                         #Coreqs are scheduled after course is taken
                         return False
-
-        if len(courseDict) > 0:
-            #Not all the planned courses are present
-            return False
         return True
 
         #Too many units in certain semester: max 17 for first several semester, 19 later? Petition for up to 21?
@@ -601,9 +612,9 @@ class RoadMapGenerator:
     def _mutate(self,organism):
         #Define parameters here
         SEMESTER_SWAP_PROBABILITY = 100
-        NUM_CLASSES_TO_MOVE = random.randrange(1,5)
+        NUM_CLASSES_TO_MOVE = random.randint(1,5)
 
-        seed = random.randrange(0,100)
+        seed = random.randint(0,100)
         #Chance to swap random courses between semesters
         if seed > SEMESTER_SWAP_PROBABILITY:
             for _ in range(NUM_CLASSES_TO_MOVE):
@@ -623,30 +634,20 @@ class RoadMapGenerator:
     #TODO: Improve _createChild to create better organism...
     # See brainstorming discord channel
     def _createChild(self,parents):
-        #If child is not viable, will retry up to MAX_TRIES times
-        MAX_TRIES = 3
+        MAX_TRIES = 3 #If child is not viable, will retry up to MAX_TRIES times
 
         tries = 0
         while tries < MAX_TRIES:
             child = self.CourseTracker(parents[0].getNumSemesters())
-            for i in range(child.getNumSemesters()):
 
-                numCourses = random.choice((parents[0].numCoursesInSemester(i),parents[1].numCoursesInSemester(i)))
-                #Choose which classes to inherit from father or mother
-                inheritance = [random.choice((0,1)) for _ in range(numCourses)]
-
-                parentCourses = (parents[0].getNodeSemester(i),parents[1].getNodeSemester(i))
-
-                #Inherit courses
-                for j in range(len(inheritance)):
-                    inheritID = inheritance[j]
-                    if j >= len(parentCourses[inheritID]):
-                        #Inherit from other parent
-                        inheritID = 1-inheritID
-                    child.placeCourse(parentCourses[inheritID][j],i)
+            #Among the classes, randomly inherit from either parent
+            #Any classes that both parents have in the same semester will always match
+            for course in parents[0].courseDict.keys():
+                parentToInherit = random.randint(0,1)
+                child.placeCourse(course,parents[parentToInherit].courseDict[course])
 
             tries += 1
-            testBool = self._isViable(child)
-            if testBool:
+            childIsViable = self._isViable(child)
+            if childIsViable:
                 break
         return child
