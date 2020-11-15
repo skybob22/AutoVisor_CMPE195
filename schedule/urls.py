@@ -15,5 +15,6 @@ urlpatterns = [
     path('community/', views.community, name='schedule-community'),
     path('roadmap/detail', views.roadmap_detail, name='roadmap-detail'),
     path('transcript/detail', views.transcript_detail, name='transcript-detail'),
+    path('Add_course/', views.Add_course, name='Add_course'),
 ]
 

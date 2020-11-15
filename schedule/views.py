@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
 from .models import *
+from .forms import *
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.decorators import login_required
 from .algorithm import generateRoadmap
@@ -130,3 +131,39 @@ def transcript_detail(request):
 @login_required
 def community(request):
 	return render(request, 'schedule/community.html', {'title': 'Roadmap'})
+
+@login_required
+def transcript(request):
+    student = Student.objects.get(user=request.user)
+
+##################################################################################
+
+				#POPULATE THE TRANSCRIPT GRADE HERE
+
+###################################################################################
+
+    return render(request, 'schedule/transcript.html', {'transcript': transcript})
+
+
+
+@login_required
+def Add_course(request):
+    x_form = Select_Department_CMPE_Form(request.POST or None)
+    if x_form.is_valid():
+##################################################################################
+
+				#Store the object to student
+				        # obj = x_form.save()
+				        # obj.save()
+
+###################################################################################
+
+         messages.success(request, f'Your Transcript Information has been updated!')
+         return render(request, 'schedule/transcript.html')
+
+
+    context = {
+        'x_form': x_form
+	}
+
+    return render(request, 'schedule/Add_course.html', context)

@@ -1,4 +1,37 @@
 {% extends "schedule/base.html" %}
 {% block content %}
-	<h1>Transcript Page!</h1>
+
+<html>
+
+    <h4><mark> Transcript Page
+    <button id="myButton" class="float-right submit-button" >Add Course</button>
+    </h4>
+
+<!--
+
+  MAKE TABLE FOR TRANSCRIPT GRADE
+    <div id="table">
+    <table border=0>
+    <thead>
+        <tr>
+        {% for attr in student %}
+           <th>{{ attr.coursesTaken}}</th>
+        {% endfor %}
+        </tr>
+
+    </table>
+    </div>
+
+  -->
+
+
+
+<script type="text/javascript">
+    document.getElementById("myButton").onclick = function () {
+          window.location.href = "/Add_course"
+    };
+</script>
+
+</html>
+
 {% endblock content %}
