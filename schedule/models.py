@@ -126,7 +126,7 @@ class Course(models.Model):
 	numUnits = models.IntegerField(default=3)
 	prereqs = models.ManyToManyField('self',symmetrical=False,blank=True,related_name='Prerequisites',through='PrereqGrade')
 	coreqs = models.ManyToManyField('self',symmetrical=False,blank=True,related_name='Corequisites')
-	GEArea = models.ManyToManyField('GEArea', symmetrical=False, blank=True)
+	GEArea = models.ManyToManyField('GEArea', symmetrical=False, blank=True,related_name='GE_Areas')
 
 	#Optional fields used for handling edge cases such as Senior Project Courses and 100W
 	unitPrereq = models.IntegerField(default=0) #How many units must be taken before taking class
@@ -138,6 +138,9 @@ class Course(models.Model):
 	NPrereqs = models.IntegerField(default=0)
 	NOfCoreqs = models.ManyToManyField('self', symmetrical=False, blank=True, related_name='Optional_Corequisites')
 	NCoreqs = models.IntegerField(default=0)
+
+	#For handling GE Prerequisites (Certain GE Areas need to be taken first)
+	GEPrereqs = models.ManyToManyField('GEArea', symmetrical=False, blank=True,related_name='GE_Prerequisites')
 
 
 	class Meta:
@@ -202,7 +205,7 @@ class Articulation(models.Model):
 
 class GERequirement(models.Model):
 	reqID = models.AutoField(primary_key=True)
-	GEAreas =  models.ManyToManyField('GEArea',symmetrical=False)
+	GEAreas = models.ManyToManyField('GEArea',symmetrical=False)
 	#Normally one of these will be Null
 	#If numCourses not null, needs N courses in that area
 	#If numUnits not null, needs N units in that area
@@ -364,6 +367,13 @@ class SemesterSchedule(models.Model):
 		#TODO: Figure out how to reference roadmap with symetrical many-to-many
 		pass
 
+	def __str__(self):
+		try:
+			roadmap = Roadmap.objects.get(semesterSchedules__id=self.id)
+			return str(roadmap) + ": " + str(self.term) + ' ' + str(self.year)
+		except:
+			return 'Unlinked SemesterSchedule: ' + str(self.id)
+
 class Roadmap(models.Model):
 	id = models.AutoField(primary_key=True)
 	semesterSchedules = models.ManyToManyField('SemesterSchedule',symmetrical=False,related_name='From_Roadmap',blank=True)
@@ -371,6 +381,12 @@ class Roadmap(models.Model):
 	class Meta:
 		#TODO: Figure out how to reference student with symetrical one-to-one
 		pass
+
+	def __str__(self):
+		try:
+			return str(self.student.user)
+		except:
+			return 'Unlinked Roadmap: ' + str(self.id)
 
 
 
@@ -394,7 +410,8 @@ class Student(models.Model):
 	#TODO: Add reference from User
 	studentID = models.CharField(max_length=9,primary_key=True)
 	user = models.OneToOneField(User, default=None, null=True, on_delete=models.CASCADE)
-	startDate = models.DateField(default=date.today, blank=True, null=True)
+	startTerm = models.CharField(max_length=6,choices=TERMS,default='Fall')
+	startYear = models.IntegerField(default=date.today().year)
 	numYears = models.IntegerField(default=4)
 
 	catalogue = models.ForeignKey('Catalogue',on_delete=models.RESTRICT)
