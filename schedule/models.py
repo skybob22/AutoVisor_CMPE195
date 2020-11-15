@@ -415,8 +415,9 @@ class Student(models.Model):
 	numYears = models.IntegerField(default=4)
 
 	catalogue = models.ForeignKey('Catalogue',on_delete=models.RESTRICT)
+	prefCourseList = models.ManyToManyField('Course', symmetrical=False, blank=True, through='PreferredCourse')
+	separateSV = models.BooleanField(default=False)
 	roadmap = models.OneToOneField('Roadmap',on_delete=models.SET_NULL,default=None,blank=True,null=True)
-	prefCourseList = models.ManyToManyField('Course',symmetrical=False,blank=True,through='PreferredCourse')
 	transcript = models.OneToOneField('Transcript',on_delete=models.SET_NULL,default=None,blank=True,null=True)
 
 	friends = models.ManyToManyField('self',symmetrical=True,related_name='AcceptedFriends',blank=True)
