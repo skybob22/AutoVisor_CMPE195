@@ -47,14 +47,16 @@ class Graph:
         self.rootNodes = set()
         self._createGraph()
 
-    def _createGraph(self):
-        # Grab all classes in the catalogue (copy of list)?
-        # Add on to list with GEs and Tech electives
-
-        passedClasses = getPassedClasses(self.user)
+    def _createGraph(self,rescheduleCurrent=False):
+        #Count in-progress classes as completed to avoid rescheduling them again
+        passedClasses = getPassedClasses(self.user,countInProgress=not rescheduleCurrent)
         self.passedClasses = passedClasses
 
         coreToTake = self.user.student.catalogue.courses.exclude(id__in=passedClasses.values('id'))
+        # TODO: Add alternative capstone field to grab E/F instead of A/B for senior project
+        if self.user.student.separateSV:
+            capstoneCalsses = (Course.objects.filter(isCapstone=True) | Course.objects.filter(department='ENGR').filter(courseID__contains='195'))
+            coreToTake = coreToTake.exclude(id__in=capstoneCalsses)
         optionalToTake = self.user.student.prefCourseList.exclude(id__in=passedClasses.values('id'))
 
         #Combine list to get all the courses to take, discarding duplicates
@@ -113,6 +115,12 @@ class Graph:
             coReqNode = self._addCourse(coReq)
             if coReqNode is not None:
                 courseNode.coReqs.append(coReqNode)
+
+        #Add 100W as aproximation for having completed WST
+        if course.requiresWST:
+            approxNode = self._addCourse(Course.objects.filter(department='ENGR').get(courseID='100W'))
+            if approxNode is not None:
+                courseNode.coReqs.append(approxNode)
 
         # Check optional co/prereqs to see if needs to be on standby
         numOptCoReq = course.NCoreqs

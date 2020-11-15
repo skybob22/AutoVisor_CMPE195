@@ -26,14 +26,16 @@ def generateRoadmap(user):
     # Before generating roadmap, make sure all GE reqs and tech electives are met between preferred courses and transcript
 
 
-    missingGE = getMissingGE(user)
+    missingGE = getMissingGEAreas(user)
     missingTech = getMissingTech(user)
 
     #All classes are accounted for
     start = time.time()
     courseGraph = Graph(user)
     generator = RoadMapGenerator(user,courseGraph)
-    roadmap = generator.getRoadmap();
+
+    # TODO: Reset the arguments to the proper default (genNew = False, save=True)
+    roadmap = generator.getRoadmap(genNew=True,save=False)
 
     # TODO: Remove timer
     end = time.time()
@@ -42,6 +44,7 @@ def generateRoadmap(user):
 
 
 class RoadMapGenerator:
+    # CourseTracker abstracts memory management of courses
     class CourseTracker:
         def __init__(self,numSemesters):
             #Speed is more important that memory usage, use two dictionaries for fast lookup
@@ -132,7 +135,10 @@ class RoadMapGenerator:
 
 
     #Roadmap Generator
+    #Need to generate a prereq graph and pass to roadmap generator
     def __init__(self,user,graph):
+        # TODO: Implement friend class matching
+        self._friendClasses = None
         self.user = user
         self.graph = graph
 
@@ -231,12 +237,15 @@ class RoadMapGenerator:
 
         return roadmap
 
-    def getRoadmap(self,genNew=False,save=True):
-        #TODO: Remove this
-        # Tempory for development
-        genNew = True
-        save = False
-
+    ##
+    # @brief Gets the user's roadmap
+    # @param genNew If true, returns a new roadmap regardless of whether the user has an existing one or not
+    # If the user does not have a roadmap, one will be generated regardless of value of genNew
+    # @param save Whether or not to save the newly generated roadmap to the database
+    # @param rescheduleCurrent If false (default), will not modify the currently in-progress semester
+    # If true, will disregard the current semester and generate a new roadmap
+    ##
+    def getRoadmap(self,genNew=False,save=True,rescheduleCurrent=False):
         roadmap = []
         if genNew or not self.user.student.roadmap:
             #Generate new roadmap
@@ -252,6 +261,10 @@ class RoadMapGenerator:
             #Extract the roadmap of actual classes instead of nodes
             roadmap = roadmap.getCourseRoadmap()
 
+            if not rescheduleCurrent and self.user.student.roadmap:
+                # TODO: Add in getting current sem schedule and prepending to roadmap
+                pass
+
             if save:
                 self._saveToDB(roadmap)
         else:
@@ -259,6 +272,7 @@ class RoadMapGenerator:
         return roadmap
 
     def _saveToDB(self,semList):
+        # TODO: Factor in date offsets given start/current date
         student = self.user.student
 
         #Remove student's current roadmap if it exists

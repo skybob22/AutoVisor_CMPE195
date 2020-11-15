@@ -1,4 +1,5 @@
 from .models import *
+import datetime
 
 ##
 # @brief Gets a tuple of all the grades better than the specified grade
@@ -6,7 +7,7 @@ from .models import *
 # @return The tuple of grades higher than, and including the input grade
 ##
 def gradeOrBetter(lowGrade):
-    #List of existing grades (In order)
+    # List of existing grades (In order)
     GRADES = ('A+','A','A-','B+','B','B-','C+','C','C-','D+','D','D-','F')
 
     gradeList = []
@@ -44,7 +45,7 @@ def getGPA(user):
         courseUnits = courseGrade.course.numUnits
         unitsTaken = unitsTaken + courseUnits
         totalGradePoints = totalGradePoints + (GPA_WEIGHT[courseGrade.grade] * courseUnits)
-    #TODO: Account for transfer classes
+    # TODO: Account for transfer classes
     return totalGradePoints/unitsTaken
 
 ##
@@ -56,86 +57,203 @@ def getUnitsTaken(user):
     unitsTaken = 0
     for courseGrade in TranscriptGrade.objects.filter(transcript=user.student.transcript).filter(grade__in=gradeOrBetter('C-')):
         unitsTaken = unitsTaken + courseGrade.course.numUnits
-    #TODO: Account for transfer classes
+    # TODO: Account for transfer classes
     return unitsTaken
 
-##
-# @brief Gets all the classes that the user has passed that fulfill a GE requirement
-# @param user The logged in user
-# @return A Django Queryset of type 'Course' containing all the classes the user has passed
-##
-def getPassedGE(user):
 
-    completedGECourses = TranscriptGrade.objects.filter(transcript=user.student.transcript).filter(GEReqID__isnull=False).filter(grade__in=gradeOrBetter('C-'))
-    return completedGECourses
+
+
+
+
+
 
 ##
 # @brief Gets all the GE area that the user has not taken, and has not planned to take
 # @param user The logged in user
+# @param countPlanned Whether to count planned GEs as "completed"
+# @param countInProgress Whether to count in-progress GEs as "completed"
+# Note: if countPlanned is set to true, the result will also include in-progress classes
 # @return A Django Queryset of type 'Course' containing all the classes that fulfill GE requirements that the user has passed
 ##
-def getMissingGE(user):
-    completedGECourses = getPassedGE(user)
-    completedGEAreas = completedGECourses.values('GEReqID')
-    GENotCompleted = user.student.catalogue.GEReqs.exclude(reqID__in=completedGEAreas)
+def getMissingGEAreas(user,countPlanned=True,countInProgress=True):
+    AllGECourses = Course.objects.filter(GEArea__isnull=False).distinct()
 
-    plannedGECourses = PreferredCourse.objects.filter(student=user.student).filter(reqID__isnull=False)
-    plannedGEAreas = plannedGECourses.values('reqID')
-    GENotAccounted = GENotCompleted.exclude(reqID__in=plannedGEAreas)
+    catalogGEs = Catalogue.objects.get(id=user.student.catalogue.id).GEReqs.all()
+    singleReqs = GERequirement.objects.filter(reqID__in=catalogGEs).filter(allowOverlap=False).all()
+    multiReqs = GERequirement.objects.filter(reqID__in=catalogGEs).filter(allowOverlap=True).all()
 
-    #TODO: Account for single-requirement GE, like Area B, C, etc.
-    # Then check for multi-area. Has "C1 AND C2" been completed?
+    # Get all the courses that the user has already passed
+    completedGEGrades = TranscriptGrade.objects.filter(transcript=user.student.transcript).filter(
+        grade__in=gradeOrBetter('C-')).filter(course__id__in=AllGECourses)
+    completedGECourses = Course.objects.filter(id__in=completedGEGrades.values('course'))
 
-    return GENotAccounted
+    if countInProgress and user.student.roadmap:
+        # Assume any classes in progress will be passed to avoid rescheduling them again in the future
+        currentYear,currentTerm = dateToSemester(datetime.date.today())
+        studentSchedules = SemesterSchedule.objects.filter(id__in=user.student.roadmap.semesterSchedules.all())
+        currentSemSchedule = studentSchedules.filter(year=currentYear).filter(term=currentTerm)
+        currentGEs = Course.objects.filter(id__in=AllGECourses).filter(id__in=currentSemSchedule.values('courses'))
+        if len(currentSemSchedule) > 0:
+            # Student has roadmap for the current semester
+            completedGECourses = (completedGECourses | Course.objects.filter(id__in=currentGEs))
 
-    #return querySet
-        # If list is empty, procede
-        # If list is not empty, warn user and do not continue
+    # Count GEs covered by major classes as "Completed" even if they are not, since the user does not need to pick them
+    if user.student.separateSV:
+        capstoneClasses = (Course.objects.filter(isCapstone=True) | Course.objects.filter(department='ENGR').filter(courseID__contains='195'))
+        coreGECourses = Course.objects.filter(id__in=user.student.catalogue.courses.all()).filter(id__in=AllGECourses).exclude(id__in=capstoneClasses)
+    else:
+        coreGECourses = Course.objects.filter(id__in=user.student.catalogue.courses.all()).filter(id__in=AllGECourses)
+    finishedGECourses = (completedGECourses | (coreGECourses.exclude(id__in=completedGECourses.values('id'))))
 
-        # Also can be used on dynamic page as list of preference to fill
 
-##
-# @brief Gets all the tech electives that the user has passed
-# @parm user The logged in user
-# @return  Django Queryset of the tech electives that the user has passed
-##
-def getPassedTech(user):
+    # If countPlanned is True, assume classes that are planned to take as complete
+    # This can be used to distinguish between GEs that ARE COMPLETE, vs ones that WILL BE TAKEN
+    if countPlanned:
+        plannedCourses = Course.objects.filter(id__in=user.student.prefCourseList.all()).filter(id__in=AllGECourses).exclude(id__in=finishedGECourses)
+        finishedGECourses = (finishedGECourses | plannedCourses)
 
-    completedTechElectives = TranscriptGrade.objects.filter(transcript=user.student.transcript).filter(courseType='Tech Elective').filter(grade__in=gradeOrBetter('C-'))
-    return completedTechElectives
+
+    # Set up data structures for tracking requirements
+    uncompletedSingleRequirements = dict()
+    uncompletedMultiRequirements = []
+    for requirement in singleReqs:
+        if len(requirement.GEAreas.all()) == 1:
+            uncompletedSingleRequirements[requirement] = None
+        else:
+            reqAreas = list(i for i in requirement.GEAreas.all())
+            uncompletedMultiRequirements.append([reqAreas, requirement.numUnits, requirement.numCourses])
+
+    for requirement in multiReqs:
+        if len(requirement.GEAreas.all()) == 1:
+            uncompletedSingleRequirements[requirement] = None
+        else:
+            reqAreas = list(i for i in requirement.GEAreas.all())
+            uncompletedMultiRequirements.append([reqAreas,requirement.numUnits,requirement.numCourses])
+
+
+    # Go though list of single requirements and mark off ones that are done
+    for requirement in list(uncompletedSingleRequirements.keys()):
+        satisfyingCourses = finishedGECourses.filter(GEArea=requirement.GEAreas.get())
+        if requirement.numUnits is None and requirement.numCourses is None:
+            # Number of units/courses does not matter, only that area is fulfilled
+            if len(satisfyingCourses) > 0:
+                uncompletedSingleRequirements.pop(requirement)
+        elif requirement.numUnits is not None and requirement.numCourses is None:
+            # Number of courses doesn't matter, but need to take a certain number of units
+            totalUnits = 0
+            for course in satisfyingCourses.all():
+                totalUnits += course.numUnits
+            uncompletedSingleRequirements.pop(requirement)
+            if totalUnits < requirement.numUnits:
+                requirement.numUnits -= totalUnits
+                uncompletedSingleRequirements[requirement] = None
+
+        elif requirement.numUnits is None and requirement.numCourses is not None:
+            # Number of units doesn't matter, but certain number of courses need to be taken
+            uncompletedSingleRequirements.pop(requirement)
+            if len(satisfyingCourses) < requirement.numCourses:
+                requirement.numCourses -= len(satisfyingCourses)
+                uncompletedSingleRequirements[requirement] = None
+
+        elif requirement.numUnits is not None and requirement.numCourses is not None:
+            # Requirement dicates at least numCourses classes which must be at lean numUnits units
+            satisfyingCourses = satisfyingCourses.filter(numUnits__gte=requirement.numUnits)
+            uncompletedSingleRequirements.pop(requirement)
+            if len(satisfyingCourses) < requirement.numCourses:
+                requirement.numCourses -= len(satisfyingCourses)
+                uncompletedSingleRequirements[requirement] = None
+
+
+    # TODO: This isn't very efficient, but should still be fast enough since there aren't many GE requirements
+    #  If we can make it more efficient that would be nice
+    # Go through the list of class (once) and check off all the GE areas that they fulfill
+    # By only going through the list once, we make sure we aren't double counting
+    for course in finishedGECourses:
+        for GEArea in course.GEArea.all():
+            for requirement in list(uncompletedMultiRequirements):
+                if GEArea in requirement[0]:
+                    #The class might fulfill one of the requirements
+                    if requirement[1] is None and requirement[2] is None:
+                        uncompletedMultiRequirements.remove(requirement)
+                    elif requirement[1] is not None and requirement[2] is None:
+                        requirement[1] -= course.numUnits
+                        if requirement[1] <= 0:
+                            uncompletedMultiRequirements.remove(requirement)
+                    elif requirement[1] is None and requirement[2] is not None:
+                        requirement[2] -= 1
+                        if requirement[2] <= 0:
+                            uncompletedMultiRequirements.remove(requirement)
+                    elif requirement[1] is not None and requirement[2] is not None:
+                        if course.numUnits >= requirement[1]:
+                            requirement[2] -= 1
+                            if requirement[2] <= 0:
+                                uncompletedMultiRequirements.remove(requirement)
+
+    # Convert single-requirements into same format as multi-requirements
+    uncompletedRequirements = []
+    for req in uncompletedSingleRequirements:
+        uncompletedRequirements.append([list(i for i in req.GEAreas.all()),req.numUnits,req.numCourses])
+    uncompletedRequirements.extend(uncompletedMultiRequirements)
+
+    return (uncompletedRequirements)
+
+
+
+
+
+
+
+
+
+
 
 ##
 # @brief Gets the number of units worth of tech electives that the user has not taken or plans to take
 # @parma user The logged in user
+# @param countPlanned Whether to count planned tech electives as "completed"
+# @param countInProgress Whether to count in-progress tech electives as "completed"
+# Note: if countPlanned is set to true, the result will also include in-progress classes
 # @return The number of units the user needs to schedule/choose
 ##
-def getMissingTech(user):
+def getMissingTech(user,countPlanned=True,countInProgress=True):
     numUnitsTaken = 0
 
-    completedTechElectives = getPassedTech(user)
-    for courseGrade in completedTechElectives:
-        numUnitsTaken = numUnitsTaken + courseGrade.course.numUnits
+    majorTechElectives = Course.objects.filter(id__in=TechElective.objects.filter(department=user.student.catalogue.department).values('course'))
 
-    plannedTechElectives = PreferredCourse.objects.filter(student=user.student).filter(courseType='Tech Elective')
-    for plannedCourse in plannedTechElectives:
-        numUnitsTaken = numUnitsTaken + plannedCourse.course.numUnits
+    completedTechElectives = TranscriptGrade.objects.filter(transcript=user.student.transcript).filter(course__id__in=majorTechElectives).filter(grade__in=gradeOrBetter('C-'))
+    for courseGrade in completedTechElectives:
+        numUnitsTaken += courseGrade.course.numUnits
+
+    if countInProgress and user.student.roadmap:
+        currentYear, currentTerm = dateToSemester(datetime.date.today())
+        studentSchedules = SemesterSchedule.objects.filter(id__in=user.student.roadmap.semesterSchedules.all())
+        currentSemSchedule = studentSchedules.filter(year=currentYear).filter(term=currentTerm)
+        currentTechElectives = majorTechElectives.filter(id__in=currentSemSchedule.values('courses'))
+        for course in currentTechElectives:
+            numUnitsTaken += course.numUnits
+
+
+
+    if countPlanned:
+        plannedTechElectives = PreferredCourse.objects.filter(student=user.student).filter(course__id__in=majorTechElectives)
+        if countInProgress and user.student.roadmap:
+            # Make sure to not double-count planned units
+            plannedTechElectives = plannedTechElectives.exclude(course__id__in=currentTechElectives)
+        for elective in plannedTechElectives:
+            numUnitsTaken += elective.course.numUnits
 
     unitsRequired = user.student.catalogue.techUnits
     unitsUnaccounted = unitsRequired - numUnitsTaken
 
-    return unitsUnaccounted
-
-    # Return number
-        # If number is zero or negative, continue all classes fulfilled
-        # If posative, do not continue, warn User
-
-        # Can also be used on dynamic page to get number of units needed to select
+    return unitsUnaccounted if unitsUnaccounted > 0 else 0
 
 ##
 # @brief Gets all the classes that the user has passed
 # @param user The logged in user
+# @param countInProgress Whether to treat in-progress classes as passed
 # @return A Django Queryset of type 'Course' containing all the classes that the user has passed
-def getPassedClasses(user):
+def getPassedClasses(user,countInProgress=False):
+    # TODO: Implement countInProgress
 
     coursesTaken = TranscriptGrade.objects.filter(transcript=user.student.transcript)
     coursesPassed = Course.objects.none()
@@ -152,4 +270,116 @@ def getPassedClasses(user):
             courseQuery = Course.objects.filter(id=trGrade.course.id)
             coursesPassed = (coursesPassed | courseQuery)
 
+    if countInProgress and user.student.roadmap:
+        currentYear, currentTerm = dateToSemester(datetime.date.today())
+        studentSchedules = SemesterSchedule.objects.filter(id__in=user.student.roadmap.semesterSchedules.all())
+        currentSemSchedule = studentSchedules.filter(year=currentYear).filter(term=currentTerm)
+        currentClasses = Course.objects.filter(id__in=currentSemSchedule.values('courses'))
+        coursesPassed = (coursesPassed | currentClasses)
+
     return coursesPassed
+
+##
+# @brief Gets the courses in the indexed semester based on the user's start date
+# @param The index from the user's start date
+# @return The courses in that semester (in a python list)
+##
+def getCoursesInSemester(user,index):
+    currentYear,currentTerm = indexToSemester(index,startYear=user.student.startYear,startTerm=user.student.startTerm)
+    studentSchedules = SemesterSchedule.objects.filter(id__in=user.student.roadmap.semesterSchedules.all())
+    currentSemSchedule = studentSchedules.filter(year=currentYear).filter(term=currentTerm)
+    currentClasses = Course.objects.filter(id__in=currentSemSchedule.values('courses'))
+
+    classList = [i for i in currentClasses.all()]
+    classList.sort(key=str)
+
+    return classList
+
+##
+# @brief Converts a python date object into a semester
+# @param A python date object
+# @return The semester that the date most closely corresponds to
+# Format is (year, term)
+# If in the middle of semester, returns current semester
+# If not in middle of semester, returns previous semester
+##
+def dateToSemester(date,includeOffSemester=False):
+    #Dates matter, but year doesn't for comparison, so all years set to 1970
+    SPRING_START_DATE = datetime.date(1970,1,27)
+    SPRING_END_DATE = datetime.date(1970,5,25)
+    SUMMER_START_DATE = None
+    SUMMER_END_DATE = None
+    FALL_START_DATE = datetime.date(1970,8,19)
+    FALL_END_DATE = datetime.date(1970,12,15)
+    WINTER_START_DATE = None
+    WINTER_END_DATE = None
+
+    modDate = date
+    modDate.replace(year=1970)
+    if includeOffSemester:
+        pass
+
+    if SPRING_START_DATE <= modDate and modDate < FALL_START_DATE:
+        #Spring semester of current year
+        return date.year,'Spring'
+    elif FALL_START_DATE <= modDate:
+        #Fall semester of current year
+        return date.year,'Fall'
+    elif modDate < SPRING_START_DATE:
+        #Fall semester of last year
+        return date.year-1,'Fall'
+
+##
+# @brief Converts a semester index (0,1,2,etc.) into year/term format given the starting semester
+# @param index The semester index
+# @param startyear, the year of the student's first semester
+# @param startTerm which term the student started (Spring/Fall)
+# @return The semester in the format year,term
+##
+def indexToSemester(index,startYear,startTerm):
+    if startTerm == 'Spring':
+        offset = 0
+    elif startTerm == 'Fall':
+        offset = 1
+    else:
+        offset = 0
+    index += offset
+
+    year = startYear
+    #Handles negative indicies
+    while index < -1:
+        year -= 1
+        index = index + 2
+
+    while index > 1:
+        year += 1
+        index = index - 2
+
+    if index == 0:
+        return year,'Spring'
+    else:
+        if index < 0:
+            year = year + index
+        return year,'Fall'
+
+##
+# @brief Converts a semester (i.e 2019, Spring) into a semester index based on the provided start date
+# @param year The year
+# @param term The term (Spring,Fall)
+# @param startDate The user's starting date
+# @return the index of that semester
+##
+def semesterToIndex(year,term,startyear,startTerm):
+    if startTerm == 'Spring':
+        offset = 0
+    elif startTerm == 'Fall':
+        offset = 1
+    else:
+        offset = 0
+
+    index = 2 * (year-startyear)
+    if term == 'Fall':
+        index += 1
+    index -= offset
+
+    return index
