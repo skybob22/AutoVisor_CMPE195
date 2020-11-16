@@ -52,24 +52,28 @@ def student(request):
 		obj.save()
 		messages.success(request, f'You Student Information has been created!')
 
-	if request.user.student is None:
-		return render(request, 'users/student.html')
-
-	u_form = StudentUpdateForm(request.POST, instance=request.user.student)
-	if u_form.is_valid():
-		update = u_form.save()
-		update.save()
-		messages.success(request, f'You Student Information has been updated!')
-
-	student = Student.objects.get(user=request.user)
-	student_exists = 0
-	if student:
-		student_exists = 1
+	# if request.user.student is None:
+	# 	context = {
+	# 		's_form': s_form ,
+	# 		'key': student_exists
+	# 	}
+	# 	return render(request, 'users/student.html', context)
+	#
+	# u_form = StudentUpdateForm(request.POST, instance=request.user.student)
+	# if u_form.is_valid():
+	# 	update = u_form.save()
+	# 	update.save()
+	# 	messages.success(request, f'You Student Information has been updated!')
+	#
+	# student = Student.objects.get(user=request.user)
+	# student_exists = 0
+	# if student:
+	# 	student_exists = 1
 
 	context = {
 		's_form': s_form ,
-		'u_form': u_form,
-		'key': student_exists
+		# 'u_form': u_form,
+		# 'key': student_exists
 	}
 
 
