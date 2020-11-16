@@ -39,13 +39,13 @@ class CourseNode:
         return hash(str(self.SJSUCourse))
 
 class Graph:
-    def __init__(self,user):
+    def __init__(self,user,rescheduleCurrent=False):
         self.user = user
 
         self.nodes = dict() #Key = 'CMPE 135', value = Node()
         self.standby = dict() #Key = 'CMPE 135', value = Node()
         self.rootNodes = set()
-        self._createGraph()
+        self._createGraph(rescheduleCurrent)
 
     def _createGraph(self,rescheduleCurrent=False):
         #Count in-progress classes as completed to avoid rescheduling them again
@@ -53,16 +53,17 @@ class Graph:
         self.passedClasses = passedClasses
 
         coreToTake = self.user.student.catalogue.courses.exclude(id__in=passedClasses.values('id'))
-        # TODO: Add alternative capstone field to grab E/F instead of A/B for senior project
         if self.user.student.separateSV:
-            capstoneCalsses = (Course.objects.filter(isCapstone=True) | Course.objects.filter(department='ENGR').filter(courseID__contains='195'))
-            coreToTake = coreToTake.exclude(id__in=capstoneCalsses)
+            coreToTake = coreToTake.exclude(isCapstone=True)
+        else:
+            coreToTake = coreToTake.exclude(isAlternateCapstone=True)
+
         optionalToTake = self.user.student.prefCourseList.exclude(id__in=passedClasses.values('id'))
 
         #Combine list to get all the courses to take, discarding duplicates
         toSchedule = (coreToTake | (optionalToTake.exclude(id__in=coreToTake.values('id'))))
 
-        # Check courses from transfer that articulate
+        # TODO: Check courses from transfer that articulate
 
         for course in toSchedule:
             self._addCourse(course)
@@ -73,6 +74,7 @@ class Graph:
         for key in list(self.standby.keys()):
             #Forced to do this way to avoid "Dictionary changed size" error
             standbyNode = self.standby[key]
+
             #Check to see if the new node is a CoReq of any of the listed nodes
             optCoReqList = standbyNode.SJSUCourse.NOfCoreqs.all()
             if node not in standbyNode.coReqs and node.SJSUCourse in optCoReqList:
