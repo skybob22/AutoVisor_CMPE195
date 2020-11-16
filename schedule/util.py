@@ -60,13 +60,6 @@ def getUnitsTaken(user):
     # TODO: Account for transfer classes
     return unitsTaken
 
-
-
-
-
-
-
-
 ##
 # @brief Gets all the GE area that the user has not taken, and has not planned to take
 # @param user The logged in user
@@ -112,100 +105,49 @@ def getMissingGEAreas(user,countPlanned=True,countInProgress=True):
         plannedCourses = Course.objects.filter(id__in=user.student.prefCourseList.all()).filter(id__in=AllGECourses).exclude(id__in=finishedGECourses)
         finishedGECourses = (finishedGECourses | plannedCourses)
 
-
     # Set up data structures for tracking requirements
-    uncompletedSingleRequirements = dict()
-    uncompletedMultiRequirements = []
-    for requirement in singleReqs:
-        if len(requirement.GEAreas.all()) == 1:
-            uncompletedSingleRequirements[requirement] = None
-        else:
-            reqAreas = list(i for i in requirement.GEAreas.all())
-            uncompletedMultiRequirements.append([reqAreas, requirement.numUnits, requirement.numCourses])
+    uncompletedRequirements = dict()
+    for requirement in (singleReqs | multiReqs):
+        uncompletedRequirements[requirement] = [requirement.numCourses,requirement.numUnits]
 
-    for requirement in multiReqs:
-        if len(requirement.GEAreas.all()) == 1:
-            uncompletedSingleRequirements[requirement] = None
-        else:
-            reqAreas = list(i for i in requirement.GEAreas.all())
-            uncompletedMultiRequirements.append([reqAreas,requirement.numUnits,requirement.numCourses])
-
-
-    # Go though list of single requirements and mark off ones that are done
-    for requirement in list(uncompletedSingleRequirements.keys()):
-        satisfyingCourses = finishedGECourses.filter(GEArea=requirement.GEAreas.get())
+    for requirement in list(uncompletedRequirements.keys()):
+        satisfyingCourses = finishedGECourses.filter(GEArea__in=requirement.GEAreas.all()).distinct()
         if requirement.numUnits is None and requirement.numCourses is None:
             # Number of units/courses does not matter, only that area is fulfilled
             if len(satisfyingCourses) > 0:
-                uncompletedSingleRequirements.pop(requirement)
+                uncompletedRequirements.pop(requirement)
         elif requirement.numUnits is not None and requirement.numCourses is None:
             # Number of courses doesn't matter, but need to take a certain number of units
             totalUnits = 0
             for course in satisfyingCourses.all():
                 totalUnits += course.numUnits
-            uncompletedSingleRequirements.pop(requirement)
-            if totalUnits < requirement.numUnits:
-                requirement.numUnits -= totalUnits
-                uncompletedSingleRequirements[requirement] = None
+
+            if totalUnits >= requirement.numUnits:
+                uncompletedRequirements.pop(requirement)
+            else:
+                uncompletedRequirements[requirement][1] -= totalUnits
 
         elif requirement.numUnits is None and requirement.numCourses is not None:
             # Number of units doesn't matter, but certain number of courses need to be taken
-            uncompletedSingleRequirements.pop(requirement)
-            if len(satisfyingCourses) < requirement.numCourses:
-                requirement.numCourses -= len(satisfyingCourses)
-                uncompletedSingleRequirements[requirement] = None
+            if len(satisfyingCourses) >= requirement.numCourses:
+                uncompletedRequirements.pop(requirement)
+            else:
+                uncompletedRequirements[requirement][0] -= len(satisfyingCourses)
 
         elif requirement.numUnits is not None and requirement.numCourses is not None:
             # Requirement dicates at least numCourses classes which must be at lean numUnits units
             satisfyingCourses = satisfyingCourses.filter(numUnits__gte=requirement.numUnits)
-            uncompletedSingleRequirements.pop(requirement)
-            if len(satisfyingCourses) < requirement.numCourses:
-                requirement.numCourses -= len(satisfyingCourses)
-                uncompletedSingleRequirements[requirement] = None
+            if len(satisfyingCourses) >= requirement.numCourses:
+                uncompletedRequirements.pop(requirement)
+            else:
+                uncompletedRequirements[requirement][0] -= len(satisfyingCourses)
 
-
-    # TODO: This isn't very efficient, but should still be fast enough since there aren't many GE requirements
-    #  If we can make it more efficient that would be nice
-    # Go through the list of class (once) and check off all the GE areas that they fulfill
-    # By only going through the list once, we make sure we aren't double counting
-    for course in finishedGECourses:
-        for GEArea in course.GEArea.all():
-            for requirement in list(uncompletedMultiRequirements):
-                if GEArea in requirement[0]:
-                    #The class might fulfill one of the requirements
-                    if requirement[1] is None and requirement[2] is None:
-                        uncompletedMultiRequirements.remove(requirement)
-                    elif requirement[1] is not None and requirement[2] is None:
-                        requirement[1] -= course.numUnits
-                        if requirement[1] <= 0:
-                            uncompletedMultiRequirements.remove(requirement)
-                    elif requirement[1] is None and requirement[2] is not None:
-                        requirement[2] -= 1
-                        if requirement[2] <= 0:
-                            uncompletedMultiRequirements.remove(requirement)
-                    elif requirement[1] is not None and requirement[2] is not None:
-                        if course.numUnits >= requirement[1]:
-                            requirement[2] -= 1
-                            if requirement[2] <= 0:
-                                uncompletedMultiRequirements.remove(requirement)
-
-    # Convert single-requirements into same format as multi-requirements
-    uncompletedRequirements = []
-    for req in uncompletedSingleRequirements:
-        uncompletedRequirements.append([list(i for i in req.GEAreas.all()),req.numUnits,req.numCourses])
-    uncompletedRequirements.extend(uncompletedMultiRequirements)
+    #Array formatted as tuple(requirement,numCourses,numUnits)
+    requirementArray = []
+    for requirement, values in uncompletedRequirements.items():
+        requirementArray.append((requirement, values[0], values[1]))
 
     return (uncompletedRequirements)
-
-
-
-
-
-
-
-
-
-
 
 ##
 # @brief Gets the number of units worth of tech electives that the user has not taken or plans to take
