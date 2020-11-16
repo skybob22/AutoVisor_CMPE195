@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
+from django.contrib import messages
 from .models import *
 from .forms import *
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
@@ -24,7 +25,7 @@ posts = [
 		'title': 'Second Post',
 		'content': 'Second Post content',
 		'date_posted': 'July 28, 2020'
-	}	
+	}
 
 ]
 
@@ -41,7 +42,7 @@ class PostListView(ListView):
 	context_object_name = 'posts'
 	ordering = ['-date_posted']
 	paginate_by = 5
-	
+
 class UserPostListView(ListView):
 	model = Post
 	template_name = 'schedule/user_posts.html' # <app>/<model>_<viewtype>.html
@@ -81,14 +82,14 @@ class PostUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 class PostDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 	model = Post
 	success_url = '/'
-	
+
 	def test_func(self):
 		post = self.get_object()
 		if self.request.user == post.author:
 			return True
 		return False
 
-	 
+
 
 def about(request):
 	return render(request, 'schedule/about.html', {'title': 'About'})
@@ -111,7 +112,7 @@ def roadmap(request):
 def roadmap_detail(request):
 	student = Student.objects.get(user=request.user)
 	roadmap = student.roadmap
-	
+
 
 	context = {
 		'semSchedules': roadmap.semesterSchedules.all()
@@ -127,6 +128,25 @@ def transcript_detail(request):
 		'transcriptGrades': transcriptGrade
 	}
 	return render(request, 'schedule/transcript_detail.html', context)
+
+@login_required
+def transcriptGrade_delete(request):
+	student = Student.objects.get(user=request.user)
+	transcript = student.transcript
+	d_form = TranscriptGradeDeleteForm(request.POST, user=request.user)
+	if d_form.is_valid():
+		data = d_form.cleaned_data['course']
+		transcriptGrade = TranscriptGrade.objects.get(transcript=transcript, course=data.course)
+		# transcript.remove(transcriptGrade)
+		transcriptGrade.delete()
+		# obj = get_object_or_404(TranscriptGrade, transcript = transcript, course =d_form.cleaned_data['course'])
+		messages.success(request, f'Your Transcript Course has been deleted!')
+		# return render(request, 'schedule/transcriptGrade_delete.html')
+
+	context = {
+			'd_form': d_form
+	}
+	return render(request, 'schedule/transcriptGrade_delete.html',  context)
 
 @login_required
 def community(request):
