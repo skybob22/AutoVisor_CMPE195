@@ -95,9 +95,9 @@ def about(request):
 	return render(request, 'schedule/about.html', {'title': 'About'})
 
 
-@login_required
-def transcript(request):
-	return render(request, 'schedule/transcript.html', {'title': 'Transcript'})
+# @login_required
+# def transcript(request):
+# 	return render(request, 'schedule/transcript.html', {'title': 'Transcript'})
 
 @login_required
 def roadmap(request):
@@ -119,6 +119,7 @@ def roadmap_detail(request):
 	}
 	return render(request, 'schedule/roadmap_detail.html', context)
 
+@login_required
 def transcript_detail(request):
 	student = Student.objects.get(user=request.user)
 	transcript = student.transcript
@@ -155,6 +156,7 @@ def community(request):
 @login_required
 def transcript(request):
     student = Student.objects.get(user=request.user)
+    return render(request, 'schedule/transcript.html', {'transcript': transcript})
 
 ##################################################################################
 
@@ -162,14 +164,19 @@ def transcript(request):
 
 ###################################################################################
 
-    return render(request, 'schedule/transcript.html', {'transcript': transcript})
-
 
 
 @login_required
 def Add_course(request):
-    x_form = Select_Department_CMPE_Form(request.POST or None)
-    if x_form.is_valid():
+	student = Student.objects.get(user=request.user)
+	transcript = student.transcript
+	x_form = Select_Department_CMPE_Form(request.POST or None)
+	if x_form.is_valid():
+		obj = x_form.save(commit=False)
+		obj.transcript = transcript
+		obj.save()
+		messages.success(request, f'Your Transcript Information has been updated!')
+		return render(request, 'schedule/transcript.html')
 ##################################################################################
 
 				#Store the object to student
@@ -177,13 +184,7 @@ def Add_course(request):
 				        # obj.save()
 
 ###################################################################################
-
-         messages.success(request, f'Your Transcript Information has been updated!')
-         return render(request, 'schedule/transcript.html')
-
-
-    context = {
-        'x_form': x_form
+	context = {
+		'x_form': x_form
 	}
-
-    return render(request, 'schedule/Add_course.html', context)
+	return render(request, 'schedule/Add_course.html', context)
