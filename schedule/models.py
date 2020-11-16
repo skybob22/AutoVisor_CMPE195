@@ -132,6 +132,7 @@ class Course(models.Model):
 	unitPrereq = models.IntegerField(default=0) #How many units must be taken before taking class
 	requiresWST = models.BooleanField(default=False)
 	isCapstone = models.BooleanField(default=False)
+	isAlternateCapstone = models.BooleanField(default=False)
 
 	#For handling Prereqs and Coreqs where N of the options must be taken (i.e Corequisite with CMPE195A OR EE198A, etc.)
 	NOfPrereqs = models.ManyToManyField('self',symmetrical=False,blank=True,related_name='Optional_Prerequisites',through='OptionalPrereqGrade')
@@ -412,7 +413,10 @@ class Student(models.Model):
 	user = models.OneToOneField(User, default=None, null=True, on_delete=models.CASCADE)
 	startTerm = models.CharField(max_length=6,choices=TERMS,default='Fall')
 	startYear = models.IntegerField(default=date.today().year)
-	numYears = models.IntegerField(default=4)
+	numSemesters = models.IntegerField(default=8)
+
+	currentTerm = models.CharField(max_length=6, choices=TERMS, default='Fall')
+	currentYear = models.IntegerField(default=date.today().year)
 
 	catalogue = models.ForeignKey('Catalogue',on_delete=models.RESTRICT)
 	prefCourseList = models.ManyToManyField('Course', symmetrical=False, blank=True, through='PreferredCourse')
