@@ -291,7 +291,7 @@ class TechElective(models.Model):
 		ordering = ('department','course',)
 
 	def __str__(self):
-		return str(self.department) + str(self.course)
+		return str(self.department) + ': ' + str(self.course)
 
 
 

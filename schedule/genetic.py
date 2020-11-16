@@ -39,7 +39,6 @@ class GeneticSimulation:
             org2 = random.choice([j for j in range(len(self._population)) if self._population[j][3] and j != org1])
             return self._population[org1][0],self._population[org2][0]
 
-
         def getMostFit(self):
             if self._population is not None and len(self._population) > 0:
                 self._sortPopulation()
@@ -51,6 +50,18 @@ class GeneticSimulation:
             for organism in self._population:
                 organism[3] = True #Oganisms that were children become adults
             self._generation += 1
+
+        def getGeneration(self):
+            return self._generation
+
+        def getFitness(self):
+            fitness = 0
+            for organism in self._population:
+                fitness += organism[1]
+            avg = fitness / self.getPopulationSize() if self.getPopulationSize() > 0 else 0
+            self._sortPopulation()
+            max = self._population[-1][1]
+            return avg,max
 
     #gen0 function should take in no parameters and produce an organism (gen0)
     #fitnessFunction should take in an organism and return a number (score)
@@ -68,18 +79,21 @@ class GeneticSimulation:
 
         #Population
         self._population = None
+        self._logbook = dict()
 
     def setParameters(self,
                       populationSize=20,
                       numGenerations=100,
                       mutationProbability=0.05,
                       survivalRate=0.55,
-                      safteyMargin=1):
+                      safteyMargin=1,
+                      logging=False):
         self._POPULATION_SIZE = populationSize
         self._NUM_GENERATIONS = numGenerations
         self._MUTATION_PROBABILITY = int(mutationProbability * 100)
         self._SURVIVAL_RATE = survivalRate
         self._SAFTEY_MARGIN = safteyMargin
+        self._LOGGING = logging
 
     def runSimulation(self):
         self._population = self.populationPool(self._fitnessFunction)
@@ -89,6 +103,9 @@ class GeneticSimulation:
             self._population.addOranism(self._gen0Function())
 
         for generation in range(self._NUM_GENERATIONS):
+            if self._LOGGING:
+                self._logbook[self._population.getGeneration()] = tuple(self._population.getFitness())
+
             #The least fit individuals are removed
             self._population.setPopulationSize(int(self._POPULATION_SIZE * self._SURVIVAL_RATE))
 
@@ -104,6 +121,9 @@ class GeneticSimulation:
 
         #Return the most fit organism
         return self._population.getMostFit()
+
+    def getLog(self):
+        return self._logbook
 
     def getResult(self):
         if self._population is not None:

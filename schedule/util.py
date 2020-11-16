@@ -53,12 +53,28 @@ def getGPA(user):
 # @param user The currently logged in user
 # @return The number of units
 ##
-def getUnitsTaken(user):
+def getUnitsTaken(user,countInProgress=True):
     unitsTaken = 0
     for courseGrade in TranscriptGrade.objects.filter(transcript=user.student.transcript).filter(grade__in=gradeOrBetter('C-')):
         unitsTaken = unitsTaken + courseGrade.course.numUnits
+    if countInProgress:
+        currentYear, currentTerm = user.student.currentYear, user.student.currentTerm
+        studentSchedules = SemesterSchedule.objects.filter(id__in=user.student.roadmap.semesterSchedules.all())
+        currentSemSchedule = studentSchedules.filter(year=currentYear).filter(term=currentTerm)
+        currentClasses = Course.objects.filter(id__in=currentSemSchedule.values('courses'))
+        for course in currentClasses:
+            unitsTaken += course.numUnits
     # TODO: Account for transfer classes
     return unitsTaken
+
+##
+# @brief Gets all the GE courses for the specified GE Area
+# @param GEArea The desired GE Area
+# @return Database query with the corresponding results, use .all() to iterate over
+##
+def getGECourses(GEArea):
+    courses = Course.objects.filter(GEArea=GEArea)
+    return courses
 
 ##
 # @brief Gets all the GE area that the user has not taken, and has not planned to take
@@ -82,7 +98,7 @@ def getMissingGEAreas(user,countPlanned=True,countInProgress=True):
 
     if countInProgress and user.student.roadmap:
         # Assume any classes in progress will be passed to avoid rescheduling them again in the future
-        currentYear,currentTerm = dateToSemester(datetime.date.today())
+        currentYear,currentTerm = user.student.currentYear, user.student.currentTerm
         studentSchedules = SemesterSchedule.objects.filter(id__in=user.student.roadmap.semesterSchedules.all())
         currentSemSchedule = studentSchedules.filter(year=currentYear).filter(term=currentTerm)
         currentGEs = Course.objects.filter(id__in=AllGECourses).filter(id__in=currentSemSchedule.values('courses'))
@@ -92,10 +108,9 @@ def getMissingGEAreas(user,countPlanned=True,countInProgress=True):
 
     # Count GEs covered by major classes as "Completed" even if they are not, since the user does not need to pick them
     if user.student.separateSV:
-        capstoneClasses = (Course.objects.filter(isCapstone=True) | Course.objects.filter(department='ENGR').filter(courseID__contains='195'))
-        coreGECourses = Course.objects.filter(id__in=user.student.catalogue.courses.all()).filter(id__in=AllGECourses).exclude(id__in=capstoneClasses)
+        coreGECourses = Course.objects.filter(id__in=user.student.catalogue.courses.all()).filter(id__in=AllGECourses).exclude(isCapstone=True)
     else:
-        coreGECourses = Course.objects.filter(id__in=user.student.catalogue.courses.all()).filter(id__in=AllGECourses)
+        coreGECourses = Course.objects.filter(id__in=user.student.catalogue.courses.all()).filter(id__in=AllGECourses).exclude(isAlternateCapstone=True)
     finishedGECourses = (completedGECourses | (coreGECourses.exclude(id__in=completedGECourses.values('id'))))
 
 
@@ -167,7 +182,7 @@ def getMissingTech(user,countPlanned=True,countInProgress=True):
         numUnitsTaken += courseGrade.course.numUnits
 
     if countInProgress and user.student.roadmap:
-        currentYear, currentTerm = dateToSemester(datetime.date.today())
+        currentYear, currentTerm = user.student.currentYear, user.student.currentTerm
         studentSchedules = SemesterSchedule.objects.filter(id__in=user.student.roadmap.semesterSchedules.all())
         currentSemSchedule = studentSchedules.filter(year=currentYear).filter(term=currentTerm)
         currentTechElectives = majorTechElectives.filter(id__in=currentSemSchedule.values('courses'))
@@ -213,7 +228,7 @@ def getPassedClasses(user,countInProgress=False):
             coursesPassed = (coursesPassed | courseQuery)
 
     if countInProgress and user.student.roadmap:
-        currentYear, currentTerm = dateToSemester(datetime.date.today())
+        currentYear, currentTerm = user.student.currentYear, user.student.currentTerm
         studentSchedules = SemesterSchedule.objects.filter(id__in=user.student.roadmap.semesterSchedules.all())
         currentSemSchedule = studentSchedules.filter(year=currentYear).filter(term=currentTerm)
         currentClasses = Course.objects.filter(id__in=currentSemSchedule.values('courses'))
@@ -325,3 +340,4 @@ def semesterToIndex(year,term,startyear,startTerm):
     index -= offset
 
     return index
+
