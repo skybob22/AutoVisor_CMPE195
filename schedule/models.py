@@ -409,7 +409,8 @@ class PreferredCourse(models.Model):
 
 class Student(models.Model):
 	#TODO: Add reference from User
-	studentID = models.CharField(max_length=9,primary_key=True)
+	id = models.AutoField(auto_created=True, primary_key=True)
+	studentID = models.CharField(max_length=9,unique=True)
 	user = models.OneToOneField(User, default=None, null=True, on_delete=models.CASCADE)
 	startTerm = models.CharField(max_length=6,choices=TERMS,default='Fall')
 	startYear = models.IntegerField(default=date.today().year)
