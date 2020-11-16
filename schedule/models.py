@@ -231,9 +231,7 @@ class GERequirement(models.Model):
 
 TERMS = (
 	('Spring','Spring'),
-	('Summer','Summer'),
 	('Fall','Fall'),
-	('Winter','Winter')
 )
 
 class CatalogueGrade(models.Model):
