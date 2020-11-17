@@ -1,34 +1,46 @@
 {% extends "schedule/base.html" %}
 {% block content %}
+<link href="https://fonts.googleapis.com/css?family=Fredoka+One|Shadows+Into+Light&display=swap" rel="stylesheet">
 
 <html>
 
-    <h4><mark> Transcript Page
-    <button id="myButton" class="float-right submit-button" >Add Course</button>
-    </h4>
+    <h1><mark> Transcript</h1></mark>
 
-<!--
+ <hr>
+    <h4>  <button id="myButton" class="button button2" >Add Course</button>
 
-  MAKE TABLE FOR TRANSCRIPT GRADE
-    <div id="table">
-    <table border=0>
-    <thead>
-        <tr>
-        {% for attr in student %}
-           <th>{{ attr.coursesTaken}}</th>
+    <button id="myButtons" class="button button3">Delete Course</button></h4>
+  <table>
+        <thead>
+          <tr>
+              <th>Department</th>
+              <th>Course</th>
+              <th>Grade</th>
+          </tr>
+        </thead>
+
+        <tbody>
+        {% for transcriptGrade in transcriptGrades %}
+            <tr>
+            <td>{{transcriptGrade.course.department}}</td>
+            <td>{{transcriptGrade.course.courseID}}</td>
+            <td>{{transcriptGrade.grade}}</td>
+          </tr>
         {% endfor %}
-        </tr>
-
-    </table>
-    </div>
-
-  -->
+        </tbody>
+      </table>
 
 
 
 <script type="text/javascript">
     document.getElementById("myButton").onclick = function () {
           window.location.href = "/Add_course"
+    };
+</script>
+
+<script type="text/javascript">
+    document.getElementById("myButtons").onclick = function () {
+          window.location.href = "/transcript/delete"
     };
 </script>
 
