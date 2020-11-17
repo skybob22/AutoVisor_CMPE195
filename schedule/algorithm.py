@@ -50,6 +50,7 @@ class RoadMapGenerator:
             #Speed is more important that memory usage, use two dictionaries for fast lookup
             self.courseDict = dict() #Dictioanry of <courseNode,semester>
             self.roadmap = [dict() for _ in range(numSemesters)] #Used as orderd set of nodes, value is set to None
+            self.semUnits = [0 for _ in range(numSemesters)]
             self.levelOfFreedom = [dict() for i in range(4)]
 
         def swapSemesters(self,sem1,sem2):
@@ -80,8 +81,10 @@ class RoadMapGenerator:
                 nodeOverwritten = True
                 semToRemove = self.courseDict[node]
                 self.roadmap[semToRemove].pop(node)
+                self.semUnits[semToRemove] -= node.getNumUnits()
             self.courseDict[node] = semester
             self.roadmap[semester][node] = None
+            self.semUnits[semester] += node.getNumUnits()
 
             #Calculate level of freedom
             #Lower number means more freedom
@@ -134,10 +137,12 @@ class RoadMapGenerator:
             return max_sem
 
         def unitsInSemester(self,semester):
-            numUnits = 0
-            for courseNode in self.roadmap[semester]:
-                numUnits += courseNode.getNumUnits()
-            return numUnits
+            #numUnits = 0
+            #for courseNode in self.roadmap[semester]:
+            #    numUnits += courseNode.getNumUnits()
+            if semester < 0 or semester >= len(self.semUnits):
+                return 0
+            return self.semUnits[semester]
 
         def coursesInSemester(self,semester):
             return len(self.roadmap[semester])
@@ -184,27 +189,6 @@ class RoadMapGenerator:
         else:
             self._semInProg = False
 
-        # Create list of all friends classes so that they can be compared
-        self._friendSchedules = []
-        self._totalFriendClasses = 0
-        for friend in self.user.student.friends.all():
-            friendRoadmap = self._datedSemestersFromDB(friend.user)
-            if friendRoadmap != []:
-                friendTracker = self.CourseTracker(self._num_semester_left)
-                for semester in friendRoadmap:
-                    for course in semester[1]:
-                        # Base index off of your start date instead of friend's since we need to compare it to your schedule
-                        index = semesterToIndex(semester[0][0], semester[0][1], self.user.student.startYear,
-                                                self.user.student.startTerm)
-                        if self._semInProg:
-                            index -= 1
-                        # Course tracker works with nodes
-                        node = CourseNode()
-                        node.SJSUCourse = course  # Comparison just requires that course matches
-                        friendTracker.placeCourse(node, index)
-                self._friendSchedules.append(friendTracker)
-                self._totalFriendClasses += friendTracker.getNumCourses()
-
         # Account for allowable number of units per semester
         self._maxSemUnits = dict()
         if self._num_semester_left > 2 and not self._semInProg:
@@ -212,7 +196,6 @@ class RoadMapGenerator:
             self._maxSemUnits[0] = 16
         else:
             self._maxSemUnits[0] = 17
-
         for i in range(1,self._num_semester_left - 2):
             # Normally students may register for up to 17 units
             self._maxSemUnits[i] = 17
@@ -268,7 +251,7 @@ class RoadMapGenerator:
 
     def _distrubuteClasses(self,roadmap):
         numSemestersLeft = roadmap.getNumSemesters()
-        for _ in range(numSemestersLeft):
+        for _ in range(min(numSemestersLeft,16)):
             for i in range(numSemestersLeft - 1, 0, -1):
                 # Create a list of potentially movable classes
                 moveCandidates = []
@@ -298,7 +281,7 @@ class RoadMapGenerator:
                     moveCandidates.remove(candidateNode)
 
         #Do several passes trying to fill in empty gaps
-        for _ in range(numSemestersLeft):
+        for _ in range(min(numSemestersLeft,16)):
             for i in range(numSemestersLeft):
                 unitsToSpare = self._maxSemUnits[i] - roadmap.unitsInSemester(i)
                 if unitsToSpare > 0:
@@ -326,7 +309,7 @@ class RoadMapGenerator:
         if self._genNew or not self.user.student.roadmap:
             #Do genetic aglroithm
             roadmap = self._geneticAlgorithm().getCourseRoadmap()
-            #roadmap = [i for i in newRoadmap if i != []]  # Remove any empty semesters
+            roadmap = [i for i in roadmap if i != []]  # Remove any empty semesters
 
             #If we are currently in the middle of a semester, we don't want to change classes
             if not self._rescheduleCurrent and self.user.student.roadmap:
@@ -400,24 +383,71 @@ class RoadMapGenerator:
 
 
     def _geneticAlgorithm(self):
+        self._initGeneticVariables()
         start = time.time()
         sim = GeneticSimulation(gen0Function=self._getGen0Candidate,
                               fitnessFunction=self._fitnessFunction,
                               childFuntion=self._createChild,
                               mutationFunction=self._mutate)
 
-        sim.setParameters(populationSize=120,
-                        numGenerations=200,
-                        mutationProbability=0.05,
+        sim.setParameters(populationSize=100,
+                        numGenerations=150,
+                        mutationProbability=0.10,
                         survivalRate=0.55,
                         safteyMargin=1,
                         logging=True)
 
         sim.runSimulation()
 
+
+
         end = time.time()
         print("Genetic Algorithm took {0:.2f}s".format(end-start))
         return sim.getResult()
+
+    def _initGeneticVariables(self):
+        # Create list of all friends classes so that they can be compared
+        self._friendSchedules = []
+        self._totalFriendClasses = 0
+        for friend in self.user.student.friends.all():
+            friendRoadmap = self._datedSemestersFromDB(friend.user)
+            if friendRoadmap != []:
+                friendTracker = self.CourseTracker(self._num_semester_left)
+                for semester in friendRoadmap:
+                    for course in semester[1]:
+                        # Base index off of your start date instead of friend's since we need to compare it to your schedule
+                        index = semesterToIndex(semester[0][0], semester[0][1], self.user.student.startYear,
+                                                self.user.student.startTerm)
+                        if self._semInProg:
+                            index -= 1
+                        # Course tracker works with nodes
+                        node = CourseNode()
+                        node.SJSUCourse = course  # Comparison just requires that course matches
+                        friendTracker.placeCourse(node, index)
+                self._friendSchedules.append(friendTracker)
+                self._totalFriendClasses += friendTracker.getNumCourses()
+
+        # Delcare the weights (good/bad) for number of units in a single semester
+        self._UNIT_MAP = dict()
+        for i in range(0, 1): self._UNIT_MAP[i] = 0.2
+        for i in range(1, 7): self._UNIT_MAP[i] = 0.7
+        for i in range(7, 12): self._UNIT_MAP[i] = 0.8
+        for i in range(12, 17): self._UNIT_MAP[i] = 1
+        for i in range(17, 19): self._UNIT_MAP[i] = 0.4
+        for i in range(19, 22): self._UNIT_MAP[i] = -0.1
+
+        # Delcare weights of (good/bad) for number of courses in a single semester
+        self._COURSE_MAP = {
+            0: 0.5,
+            1: 0.1,
+            2: 0.4,
+            3: 0.7,
+            4: 1,
+            5: 0.8,
+            6: 0.3,
+            7: -0.1
+        }
+
 
     #=====Define functions used by genetic algorithm=====#
     def _isViable(self,organism):
@@ -428,7 +458,7 @@ class RoadMapGenerator:
 
         for semester in range(organism.getNumSemesters()):
             if organism.unitsInSemester(semester) > self._maxSemUnits[semester]:
-                return 0
+                return 0.3
 
         for node,semester in organism.courseDict.items():
                 #Check that prereqs will be completed
@@ -472,37 +502,15 @@ class RoadMapGenerator:
         #Check the average number of units in a semester
         unitResult=0
         courseResult = 0
-
-        #Delcare the weights (good/bad) for number of units in a single semester
-        UNIT_MAP = dict()
-        for i in range(0,1): UNIT_MAP[i] = 0.2
-        for i in range(1, 7): UNIT_MAP[i] = 0.7
-        for i in range(7, 12): UNIT_MAP[i] = 0.8
-        for i in range(12, 17): UNIT_MAP[i] = 1
-        for i in range(17, 20): UNIT_MAP[i] = 0.4
-        for i in range(19, 22): UNIT_MAP[i] = 0.1
-
-        #Delcare weights of (good/bad) for number of courses in a single semester
-        COURSE_MAP = {
-            0:0.5,
-            1:0.3,
-            2:0.4,
-            3:0.8,
-            4:1,
-            5:0.9,
-            6:0.3,
-            7:0.1
-        }
-
         for i in range(organism.getNumSemesters()):
             numUnits = organism.unitsInSemester(i)
             numCourses = organism.coursesInSemester(i)
 
-            if numUnits in UNIT_MAP:
-                unitResult += UNIT_MAP[numUnits]
+            if numUnits in self._UNIT_MAP:
+                unitResult += self._UNIT_MAP[numUnits]
 
-            if numCourses in COURSE_MAP:
-                courseResult += COURSE_MAP[numCourses]
+            if numCourses in self._COURSE_MAP:
+                courseResult += self._COURSE_MAP[numCourses]
         unitResult /= organism.getNumSemesters()
         courseResult /= organism.getNumSemesters()
 
@@ -513,8 +521,8 @@ class RoadMapGenerator:
         # Calculate score based on results and relative weights
         score -= 10 * (1 - viability)
         score += 3 * friendResult
-        score += 7 * unitResult
-        score += 2 * courseResult
+        score += 6 * unitResult
+        score += 4 * courseResult
         return score
 
     #TODO: Improve _mutate function to change oragnisms in a more useful way
@@ -527,7 +535,7 @@ class RoadMapGenerator:
         # Chance to swap random free courses between semesters
         if SEMESTER_SWAP_CHANCE > 60:
             for _ in range(NUM_CLASSES_TO_MOVE):
-                LOF = random.choices(range(0,4),weights=[40,35,15,10],k=1)[0]
+                LOF = random.choices(range(0,4),weights=[35,35,20,10],k=1)[0]
                 if len(organism.levelOfFreedom[LOF]) == 0:
                     continue
                 course = random.choice(list(organism.levelOfFreedom[LOF].keys()))
@@ -547,6 +555,7 @@ class RoadMapGenerator:
         MAX_TRIES = 3 #If child is not viable, will retry up to MAX_TRIES times
 
         tries = 0
+        child = None
         while tries < MAX_TRIES:
             child = self.CourseTracker(parents[0].getNumSemesters())
 

@@ -61,7 +61,8 @@ class GeneticSimulation:
             avg = fitness / self.getPopulationSize() if self.getPopulationSize() > 0 else 0
             self._sortPopulation()
             max = self._population[-1][1]
-            return avg,max
+            min = self._population[0][1]
+            return avg,max,min
 
     #gen0 function should take in no parameters and produce an organism (gen0)
     #fitnessFunction should take in an organism and return a number (score)
@@ -81,6 +82,14 @@ class GeneticSimulation:
         self._population = None
         self._logbook = dict()
 
+    ##
+    # @brief Sets the parameters for a genetic simulation
+    # @param populationSize The number of organisms to keep in the population
+    # @param numGenerations How many generations the simulation should cycle for
+    # @param mutationProbability How likely it is for organisms to mutate
+    # @param survivalRate What percentage of organisms survive from one generation to the next
+    # @param safetyMargin The top N organisms will not mutate (used to ensure that the max fitness doesn't decrease)
+    # @param logging Whether to keep a log of the fitnesses across generations
     def setParameters(self,
                       populationSize=20,
                       numGenerations=100,
@@ -122,6 +131,11 @@ class GeneticSimulation:
         #Return the most fit organism
         return self._population.getMostFit()
 
+    ##
+    # @brief Gets the log if logging was set to true for the simulation
+    # @return a dictionary with the generation number as a key, and a tuple of fitnesses as the value
+    # Value is a tuple of (averageFitness,maxFitness,minFitness) for said generation
+    ##
     def getLog(self):
         return self._logbook
 
