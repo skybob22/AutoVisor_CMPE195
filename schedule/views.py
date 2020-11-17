@@ -1,4 +1,5 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import HttpResponseRedirect
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.contrib import messages
@@ -131,6 +132,10 @@ def transcript_detail(request):
 	return render(request, 'schedule/transcript_detail.html', context)
 
 @login_required
+def index(request):
+    return render(request,'schedule/transcript.html',{})
+
+@login_required
 def transcriptGrade_delete(request):
 	student = Student.objects.get(user=request.user)
 	transcript = student.transcript
@@ -138,11 +143,9 @@ def transcriptGrade_delete(request):
 	if d_form.is_valid():
 		data = d_form.cleaned_data['course']
 		transcriptGrade = TranscriptGrade.objects.get(transcript=transcript, course=data.course)
-		# transcript.remove(transcriptGrade)
+		messages.success(request,(transcriptGrade.course, 'has been deleted!'))
 		transcriptGrade.delete()
-		# obj = get_object_or_404(TranscriptGrade, transcript = transcript, course =d_form.cleaned_data['course'])
-		messages.success(request, f'Your Transcript Course has been deleted!')
-		# return render(request, 'schedule/transcriptGrade_delete.html')
+		return redirect("index")
 
 	context = {
 			'd_form': d_form
@@ -155,14 +158,14 @@ def community(request):
 
 @login_required
 def transcript(request):
-    student = Student.objects.get(user=request.user)
-    return render(request, 'schedule/transcript.html', {'transcript': transcript})
+	student = Student.objects.get(user=request.user)
+	transcript = student.transcript
+	transcriptGrade = TranscriptGrade.objects.filter(transcript=transcript)
 
-##################################################################################
-
-				#POPULATE THE TRANSCRIPT GRADE HERE
-
-###################################################################################
+	context = {
+		'transcriptGrades': transcriptGrade
+	}
+	return render(request, 'schedule/transcript.html', context)
 
 
 
@@ -175,15 +178,9 @@ def Add_course(request):
 		obj = x_form.save(commit=False)
 		obj.transcript = transcript
 		obj.save()
-		messages.success(request, f'Your Transcript Information has been updated!')
-		return render(request, 'schedule/transcript.html')
-##################################################################################
+		messages.success(request,(obj.course, 'has been added!'))
+		return redirect("index")
 
-				#Store the object to student
-				        # obj = x_form.save()
-				        # obj.save()
-
-###################################################################################
 	context = {
 		'x_form': x_form
 	}
