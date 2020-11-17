@@ -1,17 +1,25 @@
 {% extends "schedule/base.html" %}
 {% block content %}
-	<h1>Roadmap Detail Page!</h1>
-	{% for semSchedule in semSchedules %}
-		<div class = "media-body">
-				<h1>{{ semSchedule.term }} {{ semSchedule.year }}</h1>
-				
-				{% for course in semSchedule.courses.all %}
-					<div class = "media-body">
-							<h1>{{ course.department }} {{ course.courseID }}</h1>
-							
-					</div>
-				{% endfor %}
-		</div>
-	{% endfor %}
+	<h1>Roadmap Details Page!</h1>
+
+
+	<table>
+        <tbody>
+
+					{% for product_type, products in semSchedules %}
+							<th>{{ product_type}}</th>
+
+				    	{% for product in products %}
+							<tr align="left">
+
+									<td>{{ product}}</td>
+									</tr>
+				    	{% endfor %}
+					{% endfor %}
+
+        </tbody>
+      </table>
+
+
 
 {% endblock content %}
