@@ -1,0 +1,63 @@
+{% extends "schedule/base.html" %}
+{% block content %}
+
+<html>
+
+    <h4><mark> Student Preference Page
+    <button id="myButton1" class="float-right submit-button" >Student General Preference</button>
+    </h4>
+
+    <h4>
+    <button id="myButton2" class="float-right submit-button" >GE Course Preference</button>
+    </h4>
+    
+       <h4>
+    <button id="myButton3" class="float-right submit-button" >Course Elective Preference</button>
+    </h4>
+
+    <table>
+        <thead>
+          <tr>
+              <th>Start Term</th>
+              <th>Start Year</th>
+              <th>Number of Semester</th>
+              <th>Current Term</th>
+              <th>Current Year</th>
+          </tr>
+        </thead>
+
+        <tbody>
+        {% for Student in Student %}
+            <tr>
+            <td>{{Student.startTerm}}</td>
+            <td>{{Student.startYear}}</td>
+            <td>{{Student.numSemesters}}</td>
+            <td>{{Student.currentTerm}}</td>
+            <td>{{Student.currentYear}}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+
+    
+<script type="text/javascript">
+    document.getElementById("myButton1").onclick = function () {
+          window.location.href = "/General_Pref"
+    };
+</script>
+
+<script type="text/javascript">
+    document.getElementById("myButton2").onclick = function () {
+          window.location.href = "/GE_Pref"
+    };
+</script>
+
+<script type="text/javascript">
+    document.getElementById("myButton3").onclick = function () {
+          window.location.href = "/Elec_Pref"
+    };
+</script>
+
+</html>
+
+{% endblock content %}

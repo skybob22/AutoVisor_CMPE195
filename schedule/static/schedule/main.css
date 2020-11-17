@@ -107,6 +107,8 @@ body {
   margin-top: 6rem;
   background-image: url(images/background.jpg);
   background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
 }
 
 h1, h2, h3, h4, h5, h6 {

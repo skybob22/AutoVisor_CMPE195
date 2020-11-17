@@ -21,3 +21,25 @@ class TranscriptGradeDeleteForm(forms.Form):
 
 class UserPreferenceForm(forms.ModelForm):
     course = forms.ModelMultipleChoiceField(queryset=Course.objects.all())
+
+############### Student Preference #################
+class Select_GE_forms(forms.ModelForm):
+
+    class Meta:
+        model = PreferredCourse
+        fields = ['course']
+
+
+class Select_ELEC_forms(forms.ModelForm):
+
+    class Meta:
+        model = PreferredCourse
+        fields = ['course']
+
+
+class Select_GEN_forms(forms.ModelForm):
+
+    class Meta:
+        model = Student
+        fields = ['startTerm', 'startYear',
+                  'numSemesters', 'currentTerm', 'currentYear']

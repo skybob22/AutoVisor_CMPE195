@@ -17,5 +17,11 @@ urlpatterns = [
     path('transcript/detail', views.transcript_detail, name='transcript-detail'),
     path('Add_course/', views.Add_course, name='Add_course'),
     path('transcript/delete', views.transcriptGrade_delete, name='transcript-delete'),
-    path('transcript/', views.index, name='index')
+    path('transcript/', views.index, name='index'),
+    path('roadmap/detail', views.roadmap_generated, name='roadmap_generated'),
+    path('Preference/', views.Preference,
+         name='Preference'),
+    path('GE_Pref/', views.GE_Pref, name='GE_Pref'),
+    path('Elec_Pref/', views.Elec_Pref, name='Elec_Pref'),
+    path('General_Pref/', views.General_Pref, name='General_Pref')
 ]
