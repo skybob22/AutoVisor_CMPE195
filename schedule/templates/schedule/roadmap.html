@@ -2,10 +2,27 @@
 {% block content %}
 	<h1>Roadmap Page!</h1>
 	<form method="get">
-    <input type="submit" class="btn" value="Click" name="print_btn">
-</form>
+	<input type="submit" class="btn" value="Click" name="print_btn">
+
+
+
+	</form>
 		    <div class="media-body">
 		      <h2 class="account-heading">{{ rp }}</h2>
 	    	</div>
+
+
+	<html>
+
+		<button id="myButton1" class="float-right submit-button" >Student Preference</button>
+		<script type="text/javascript">
+			document.getElementById("myButton1").onclick = function () {
+				  window.location.href = "/Preference"
+			};
+		</script>
+
+	</html>
+
+
 
 {% endblock content %}
