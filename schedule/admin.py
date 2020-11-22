@@ -21,3 +21,7 @@ admin.site.register(PreferredCourse)
 admin.site.register(Roadmap)
 admin.site.register(SemesterSchedule)
 admin.site.register(TechElective)
+
+admin.site.register(College)
+admin.site.register(TransferCourse)
+admin.site.register(Articulation)
