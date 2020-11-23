@@ -238,12 +238,13 @@ def Elec_Pref(request):
 @login_required
 def General_Pref(request):
     student = Student.objects.get(user=request.user)
-    General_List = student
     q_form = Select_GEN_forms(request.POST or None)
     if q_form.is_valid():
-        obj = q_form.save(commit=False)
-        obj = General_List
-        obj.save()
+        q_form =  Select_GEN_forms(request.POST, instance = student)
+        # obj = q_form.save(commit=False)
+        # obj.student = General_List
+        # obj.save()
+        q_form.save()
         messages.success(
             request, f'Your Student Preference Information has been updated!')
         return render(request, 'schedule/General_Pref.html')
