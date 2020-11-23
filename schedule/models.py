@@ -142,6 +142,8 @@ class Course(models.Model):
 
 	#For handling GE Prerequisites (Certain GE Areas need to be taken first)
 	GEPrereqs = models.ManyToManyField('GEArea', symmetrical=False, blank=True,related_name='GE_Prerequisites')
+	#For handling sequential classes
+	sequential = models.ManyToManyField('self',symmetrical=False,blank=True,related_name='Sequential')
 
 
 	class Meta:
@@ -433,4 +435,3 @@ class Student(models.Model):
 	def __str__(self):
 		#TODO: Get student name from user later
 		return str(self.user) + ': ' + str(self.studentID)
-
