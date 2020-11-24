@@ -23,5 +23,6 @@ urlpatterns = [
          name='Preference'),
     path('GE_Pref/', views.GE_Pref, name='GE_Pref'),
     path('Elec_Pref/', views.Elec_Pref, name='Elec_Pref'),
-    path('General_Pref/', views.General_Pref, name='General_Pref')
+    path('General_Pref/', views.General_Pref, name='General_Pref'),
+    path('Preference/delete', views.preferredCourse_delete, name='pref-delete'),
 ]

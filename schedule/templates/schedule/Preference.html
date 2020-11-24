@@ -10,7 +10,7 @@
     <h4>
     <button id="myButton2" class="float-right submit-button" >GE Course Preference</button>
     </h4>
-    
+
        <h4>
     <button id="myButton3" class="float-right submit-button" >Course Elective Preference</button>
     </h4>
@@ -27,19 +27,35 @@
         </thead>
 
         <tbody>
-        {% for Student in Student %}
             <tr>
-            <td>{{Student.startTerm}}</td>
-            <td>{{Student.startYear}}</td>
-            <td>{{Student.numSemesters}}</td>
-            <td>{{Student.currentTerm}}</td>
-            <td>{{Student.currentYear}}</td>
+            <td>{{student.startTerm}}</td>
+            <td>{{student.startYear}}</td>
+            <td>{{student.numSemesters}}</td>
+            <td>{{student.currentTerm}}</td>
+            <td>{{student.currentYear}}</td>
           </tr>
-        {% endfor %}
         </tbody>
       </table>
 
-    
+
+      <table>
+            <thead>
+              <tr>
+                  <th>Department</th>
+                  <th>Course</th>
+              </tr>
+            </thead>
+
+            <tbody>
+            {% for preferredCourse in preferredCourses %}
+                <tr>
+                <td>{{preferredCourse.course.department}}</td>
+                <td>{{preferredCourse.course.courseID}}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+
 <script type="text/javascript">
     document.getElementById("myButton1").onclick = function () {
           window.location.href = "/General_Pref"
