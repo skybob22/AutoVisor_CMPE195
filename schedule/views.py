@@ -9,7 +9,6 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.contrib.auth.decorators import login_required
 from .algorithm import generateRoadmap
 
-# from django.http import HttpResponse
 
 
 
@@ -32,8 +31,10 @@ posts = [
 
 # Create your views here.
 def home(request):
+	student = Student.objects.get(user=request.user)
 	context = {
-		'posts': Post.objects.all()
+		'posts': Post.objects.all(),
+		'student': student
 	}
 	return render(request, 'schedule/home.html', context)
 
@@ -99,12 +100,12 @@ semList=''
 
 @login_required
 def roadmap(request):
-	rp = 'Not Clicked Yet!'
+	rp = 'Please Click to Generate Roadmap!'
 	if(request.GET.get('print_btn')):
 		global semList
 		semList = generateRoadmap(request.user)
 		student = Student.objects.get(user=request.user)
-		rp = 'Clicked'
+		rp = 'Generating Roadmap... Please Wait.'
 		return redirect("roadmap_generated")
 	return render(request, 'schedule/roadmap.html', {'rp': rp})
 
@@ -157,6 +158,23 @@ def transcriptGrade_delete(request):
 	return render(request, 'schedule/transcriptGrade_delete.html',  context)
 
 @login_required
+def preferredCourse_delete(request):
+	student = Student.objects.get(user=request.user)
+	preferred = student.prefCourseList
+	p_form = PreferredCourseDeleteForm(request.POST, user=request.user)
+	if p_form.is_valid():
+		data = p_form.cleaned_data['course']
+		preferredCourse = PreferredCourse.objects.get(student = student, course=data.course)
+		messages.success(request,(preferredCourse.course, 'has been deleted!'))
+		preferredCourse.delete()
+		return redirect("Preference")
+
+	context = {
+			'p_form': p_form
+	}
+	return render(request, 'schedule/preferredCourse_delete.html',  context)
+
+@login_required
 def community(request):
 	return render(request, 'schedule/community.html', {'title': 'Roadmap'})
 
@@ -195,8 +213,13 @@ def Add_course(request):
 
 @login_required
 def Preference(request):
-    return render(request, 'schedule/Preference.html', {'title': 'Preference'})
-
+    student = Student.objects.get(user=request.user)
+    preferredCourse = PreferredCourse.objects.filter(student=student)
+    context = {
+	    'student': student,
+		'preferredCourses': preferredCourse
+    }
+    return render(request, 'schedule/Preference.html', context)
 
 # Todo: Form a connection to the database to save the values from the forms
 @login_required
@@ -241,9 +264,6 @@ def General_Pref(request):
     q_form = Select_GEN_forms(request.POST or None)
     if q_form.is_valid():
         q_form =  Select_GEN_forms(request.POST, instance = student)
-        # obj = q_form.save(commit=False)
-        # obj.student = General_List
-        # obj.save()
         q_form.save()
         messages.success(
             request, f'Your Student Preference Information has been updated!')

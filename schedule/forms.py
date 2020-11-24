@@ -19,6 +19,18 @@ class TranscriptGradeDeleteForm(forms.Form):
 
     course = forms.ModelChoiceField(queryset=None)
 
+class PreferredCourseDeleteForm(forms.Form):
+
+    class Meta:
+        model = PreferredCourse
+        fields = ['course']
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super(PreferredCourseDeleteForm, self).__init__(*args, **kwargs)
+        self.fields['course'].queryset = PreferredCourse.objects.filter(student=self.user.student)
+
+    course = forms.ModelChoiceField(queryset=None)
+
 class UserPreferenceForm(forms.ModelForm):
     course = forms.ModelMultipleChoiceField(queryset=Course.objects.all())
 

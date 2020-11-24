@@ -2,12 +2,25 @@
 {% block content %}
 {% load static %}
 
-
+<html>
 {% if user.is_authenticated %}
 <h1>Welcome to AutoVisor.</h1>
-
+<button id="myButton1" class="float-right submit-button" >Register Student</button>
 {% else %}
 <h1>AutoVisor</h1>
+<button id="myButton2" class="float-right submit-button" >Register User</button>
 	{% endif %}
 
+<script type="text/javascript">
+	document.getElementById("myButton1").onclick = function () {
+	   window.location.href = "/student"
+  };
+</script>
+
+<script type="text/javascript">
+	document.getElementById("myButton2").onclick = function () {
+	   window.location.href = "/register"
+  };
+</script>
+</html>
 {% endblock content %}
