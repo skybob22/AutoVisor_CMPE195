@@ -15,6 +15,10 @@
     <button id="myButton3" class="float-right submit-button" >Course Elective Preference</button>
     </h4>
 
+    <h4>
+ <button id="myButton4" class="float-right submit-button" >Delete Preference</button>
+ </h4>
+
     <table>
         <thead>
           <tr>
@@ -74,6 +78,11 @@
     };
 </script>
 
+<script type="text/javascript">
+    document.getElementById("myButton4").onclick = function () {
+          window.location.href = "/Preference/delete"
+    };
+</script>
 </html>
 
 {% endblock content %}

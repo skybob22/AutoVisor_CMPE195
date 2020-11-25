@@ -30,7 +30,7 @@ urlpatterns = [
     path('student/', user_views.student, name ='student'),
     path('', include('schedule.urls')),
 ]
-# removed 'schedule/'
+
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
