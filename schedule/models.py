@@ -435,3 +435,13 @@ class Student(models.Model):
 	def __str__(self):
 		#TODO: Get student name from user later
 		return str(self.user) + ': ' + str(self.studentID)
+
+	def addFriend(self,sID):
+		sendTo = Student.objects.filter(studentID=sID)
+		if len(sendTo) == 0:
+			return None
+		else:
+			otherStudent = sendTo[0]
+			otherStudent.friendRequests.add(self)
+			otherStudent.save()
+			return otherStudent

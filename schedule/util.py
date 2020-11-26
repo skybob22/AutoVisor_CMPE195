@@ -70,11 +70,36 @@ def getUnitsTaken(user,countInProgress=True):
 ##
 # @brief Gets all the GE courses for the specified GE Area
 # @param GEArea The desired GE Area
-# @return Database query with the corresponding results, use .all() to iterate over
+# @param user The current user, if none, will not filter out planned courses
+# If user is specified, it will filter out currently taken/planned courses to that they are not selected twice
+# @return Queryset with the corresponding results, use .all() to iterate over
 ##
-def getGECourses(GEArea):
+def getGECourses(GEArea,user=None):
     courses = Course.objects.filter(GEArea=GEArea)
+    if user is not None:
+        courses = courses.exclude(id__in=getPassedClasses(user,True)).exclude(id__in=user.student.prefCourseList.all())
     return courses
+
+##
+# @brief Gets list of the technical electives for the specified major or user
+# @param major The major that you wish to get the tech electives for
+# @param user The current user, if none, will not filter out planned electives
+# If user is specified, it will filter out currently taken/planned electives so that they are not selected twice
+# @return a Queryset of courses, use .all() to iterate over
+##
+def getTechElectives(major=None,user=None):
+    if user is not None:
+        major = user.student.catalogue.department
+        majorElectives = TechElective.objects.filter(department=major)
+        majorElectives = majorElectives.exclude(course__id__in=getPassedClasses(user,True)).exclude(course__id__in=user.student.prefCourseList.all())
+        courses = Course.objects.filter(id__in=majorElectives.values('course'))
+        return courses
+    elif major is not None:
+        majorElectives = TechElective.objects.filter(department=major)
+        courses = Course.objects.filter(id__in=majorElectives.values('course'))
+        return courses
+    else:
+        return Course.objects.none()
 
 ##
 # @brief Gets all the GE area that the user has not taken, and has not planned to take
@@ -208,7 +233,7 @@ def getMissingTech(user,countPlanned=True,countInProgress=True):
 # @brief Gets all the classes that the user has passed
 # @param user The logged in user
 # @param countInProgress Whether to treat in-progress classes as passed
-# @return A Django Queryset of type 'Course' containing all the classes that the user has passed
+# @return A Django Queryset of type 'Course' containing all the classes that the user has passed, use.all() to iterate over
 def getPassedClasses(user,countInProgress=False):
     # TODO: Implement countInProgress
 
