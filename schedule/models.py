@@ -436,29 +436,44 @@ class Student(models.Model):
 		#TODO: Get student name from user later
 		return str(self.user) + ': ' + str(self.studentID)
 
-	def addFriend(self,sID):
-		sendTo = Student.objects.filter(studentID=sID)
-		if len(sendTo) == 0:
+	def addFriend(self,student=None,sID=None):
+		if student is None and sID is None:
 			return None
-		else:
-			otherStudent = sendTo[0]
-			otherStudent.friendRequests.add(self)
-			otherStudent.save()
-			return otherStudent
+		elif student is None:
+			query = self.friendRequests.all().filter(studentID=sID)
+			if query.exists():
+				student = query.get()
+			else:
+				return None
+		student.friendRequests.add(self)
+		student.save()
+		return student
 
-	def acceptFriend(self,sID):
-		friend = self.friendRequests.filter(studentID=sID)
-		if len(friend) == 0:
+	def acceptFriend(self,student=None,sID=None):
+		if student is None and sID is None:
 			return
-		friend = friend.get()
-		self.friendRequests.remove(friend)
-		self.friends.add(friend)
+		elif student is None:
+			query = self.friendRequests.all().filter(studentID=sID)
+			if query.exists():
+				student = query.get()
+			else:
+				return
+		elif not self.friendRequests.all().filter(studentID=student.studentID).exists():
+			return
+		self.friendRequests.remove(student)
+		self.friends.add(student)
 		self.save()
 
-	def declineFriend(self,sID):
-		friend = self.friendRequests.filter(studentID=sID)
-		if len(friend) == 0:
+	def declineFriend(self,student=None,sID=None):
+		if student is None and sID is None:
 			return
-		friend = friend.get()
-		self.friendRequests.remove(friend)
+		elif student is None:
+			query = self.friendRequests.all().filter(studentID=sID)
+			if query.exists():
+				student = query.get()
+			else:
+				return
+		elif not self.friendRequests.all().filter(studentID=student.studentID).exists():
+			return
+		self.friendRequests.remove(student)
 		self.save()
