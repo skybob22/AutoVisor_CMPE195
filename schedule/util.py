@@ -107,7 +107,7 @@ def getTechElectives(major=None,user=None):
 # @param countPlanned Whether to count planned GEs as "completed"
 # @param countInProgress Whether to count in-progress GEs as "completed"
 # Note: if countPlanned is set to true, the result will also include in-progress classes
-# @return A Django Queryset of type 'Course' containing all the classes that fulfill GE requirements that the user has passed
+# @return Array formatted as tuple(requirement,numCourses,numUnits)
 ##
 def getMissingGEAreas(user,countPlanned=True,countInProgress=True):
     AllGECourses = Course.objects.filter(GEArea__isnull=False).distinct()

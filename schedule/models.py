@@ -445,3 +445,20 @@ class Student(models.Model):
 			otherStudent.friendRequests.add(self)
 			otherStudent.save()
 			return otherStudent
+
+	def acceptFriend(self,sID):
+		friend = self.friendRequests.filter(studentID=sID)
+		if len(friend) == 0:
+			return
+		friend = friend.get()
+		self.friendRequests.remove(friend)
+		self.friends.add(friend)
+		self.save()
+
+	def declineFriend(self,sID):
+		friend = self.friendRequests.filter(studentID=sID)
+		if len(friend) == 0:
+			return
+		friend = friend.get()
+		self.friendRequests.remove(friend)
+		self.save()
