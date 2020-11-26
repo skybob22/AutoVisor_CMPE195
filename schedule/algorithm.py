@@ -4,13 +4,13 @@ from .graph import CourseNode, Graph
 from .genetic import GeneticSimulation
 import random
 import time
-import matplotlib.pyplot as plt
+
 
 ##
 # @brief Generates a roadmap for the user based on preferences
 # @param user The logged in user
 ##
-def generateRoadmap(user):
+def generateRoadmap(user,genNew=False,rescheduleCurrent=False):
 
     missingGE = getMissingGEAreas(user)
     missingTech = getMissingTech(user)
