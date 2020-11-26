@@ -19,4 +19,6 @@ urlpatterns = [
     path('Elec_Pref/', views.Elec_Pref, name='Elec_Pref'),
     path('General_Pref/', views.General_Pref, name='General_Pref'),
     path('Preference/delete', views.preferredCourse_delete, name='pref-delete'),
+    path('community/', views.community_portal, name='community_portal'),
+    path('community/send_friendreq', views.send_friendreq, name='send_friendreq')    
 ]
