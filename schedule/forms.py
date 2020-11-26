@@ -1,5 +1,6 @@
 from django import forms
 from .models import *
+from .util import *
 
 class Select_Department_CMPE_Form(forms.ModelForm):
 
@@ -38,18 +39,40 @@ class Send_Friend_Form(forms.Form):
     request_ID = forms.CharField()
     
 ############### Student Preference #################
-class Select_GE_forms(forms.ModelForm):
+class Select_GE_forms(forms.Form):
 
     class Meta:
-        model = PreferredCourse
+        model = Course
         fields = ['course']
 
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        GEReq = kwargs.pop('GEReq')
+        super(Select_GE_forms, self).__init__(*args, **kwargs)
+        course = Course.objects.none()
 
-class Select_ELEC_forms(forms.ModelForm):
+
+        # temp is a tuple of (GErequirement, numofCourses, numUnits)
+        for area in GEReq.GEAreas.all():
+            course = (course | getGECourses(area, user=self.user).exclude(id__in=course))
+
+        self.fields['course'].queryset = course
+
+    course = forms.ModelChoiceField(queryset=None) #can add required = False
+
+
+class Select_ELEC_forms(forms.Form):
 
     class Meta:
-        model = PreferredCourse
+        model = TechElective
         fields = ['course']
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super(Select_ELEC_forms, self).__init__(*args, **kwargs)
+        self.fields['course'].queryset = getTechElectives(user=self.user)
+
+    course = forms.ModelChoiceField(queryset=None)
 
 
 class Select_GEN_forms(forms.ModelForm):
