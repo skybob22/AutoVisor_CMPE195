@@ -6,56 +6,15 @@
 			{% csrf_token %}
 			<fieldset class="form-group">
 				<legend class="border-bottom mb-4">Select GE Courses</legend>
-                <legend class="border-bottom mb-4">Select Area C1 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area C2 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select an additional Area C1,C2 Course</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area A1 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area A2 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area A3 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select an additional Area A1,A2,A3 Course</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area B1 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area B2 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area B3 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area B4 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select an additional Area B1,B2,B3,B4 Course</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area D1 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area D2 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area D3 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area US1 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area US2 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area US3 Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select an additional Area US1,US2,US3 Course</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area R Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area S Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area V Courses</legend>
-                {{ z_form|crispy }}
-                <legend class="border-bottom mb-4">Select Area Z Courses</legend>
-                {{ z_form|crispy }}                
+
+				{% for item in tlist %}
+				<legend class="border-bottom mb-4">Select Area {{ item.1 }} Course</legend>
+                	{{ item.0|crispy }}
+				{% endfor %}
 			</fieldset>
 			<div class="form-group">
 				<button class="btn btn-outline-info" type="submit">Confirm</button>
 			</div>
 		</form>>
 	</div>
-	{% endblock content %}
+{% endblock content %}

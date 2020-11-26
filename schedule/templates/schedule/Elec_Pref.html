@@ -5,12 +5,7 @@
 		<form method="POST" enctype="multipart/form-data">
 			{% csrf_token %}
 			<fieldset class="form-group">
-				<legend class="border-bottom mb-4">Select Technical Elective Courses</legend>
-                <legend class="border-bottom mb-4">Select Elective Course 1</legend>
-                {{ y_form|crispy }}
-                <legend class="border-bottom mb-4">Select Elective Course 2</legend>
-                {{ y_form|crispy }}
-                <legend class="border-bottom mb-4">Select Elective Course 3</legend>
+				<legend class="border-bottom mb-4">Select Technical Elective Course</legend>
                 {{ y_form|crispy }}
               
 			</fieldset>

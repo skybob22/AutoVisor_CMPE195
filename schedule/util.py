@@ -187,7 +187,7 @@ def getMissingGEAreas(user,countPlanned=True,countInProgress=True):
     for requirement, values in uncompletedRequirements.items():
         requirementArray.append((requirement, values[0], values[1]))
 
-    return (uncompletedRequirements)
+    return (requirementArray)
 
 ##
 # @brief Gets the number of units worth of tech electives that the user has not taken or plans to take

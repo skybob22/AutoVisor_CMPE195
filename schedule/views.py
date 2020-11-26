@@ -13,11 +13,9 @@ from .algorithm import generateRoadmap
 
 
 # Create your views here.
-def home(request):
-	student_exists = Student.objects.filter(user=request.user).exists()
+def home(request): 
 	context = {
-		'posts': Post.objects.all(),
-		'student_exists': student_exists
+		'posts': Post.objects.all()
 	}
 	return render(request, 'schedule/home.html', context)
 
@@ -206,38 +204,48 @@ def Preference(request):
 # Todo: Form a connection to the database to save the values from the forms
 @login_required
 def GE_Pref(request):
-    student = Student.objects.get(user=request.user)
-    GE_CourseList = student.prefCourseList
-    z_form = Select_GE_forms(request.POST or None)
-    if z_form.is_valid():
-        obj = z_form.save(commit=False)
-        obj.prefCourseList = GE_CourseList
-        obj.save()
-        messages.success(
-            request, f'Your Student GE Preference Information has been updated!')
-        return render(request, 'schedule/GE_Pref.html')
-    context = {
-        'z_form': z_form
-    }
-    return render(request, 'schedule/GE_Pref.html', context)
+	student = Student.objects.get(user=request.user)
+	GE_CourseList = student.prefCourseList
+	reqList = getMissingGEAreas(user=request.user)
+
+	tlist = []
+	for item in reqList:
+		temp = item[0]
+		z_form = Select_GE_forms(request.POST, user=request.user, GEReq=temp)
+		tlist.append((z_form, temp))
+
+	valid = True
+	for z_form,_ in tlist:
+		if not z_form.is_valid():
+			valid = False
+	if valid:
+		messages.success(request, 'Your Student GE Preference Information has been updated!')
+		return render(request, 'schedule/GE_Pref.html')
+
+
+	context = {
+		'tlist': tlist
+	}
+	return render(request, 'schedule/GE_Pref.html', context)
 
 
 @login_required
 def Elec_Pref(request):
-    student = Student.objects.get(user=request.user)
-    Elec_List = student.prefCourseList
-    y_form = Select_ELEC_forms(request.POST or None)
-    if y_form.is_valid():
-        obj = y_form.save(commit=False)
-        obj.prefCourseList = Elec_List
-        obj.save()
-        messages.success(
-            request, f'Your Student Technical Elective Preference Information has been updated!')
-        return render(request, 'schedule/Elec_Pref.html')
-    context = {
-        'y_form': y_form
-    }
-    return render(request, 'schedule/Elec_Pref.html', context)
+	if Student.objects.filter(user=request.user).exists() is False:
+		return redirect("student")
+	student = Student.objects.get(user=request.user)
+	preferred = student.prefCourseList
+	y_form = Select_ELEC_forms(request.POST, user=request.user)
+	if y_form.is_valid():
+		data = y_form.cleaned_data['course']
+		preferred.add(data)
+		student.save()
+		messages.success(request, (str(data), 'has been deleted!'))
+		return redirect("Preference")
+	context = {
+		'y_form': y_form
+	}
+	return render(request, 'schedule/Elec_Pref.html', context)
 
 
 @login_required
@@ -247,7 +255,7 @@ def General_Pref(request):
     student = Student.objects.get(user=request.user)
     q_form = Select_GEN_forms(request.POST or None)
     if q_form.is_valid():
-        q_form =  Select_GEN_forms(request.POST, instance = student)
+        q_form = Select_GEN_forms(request.POST, instance = student)
         q_form.save()
         messages.success(
             request, f'Your Student Preference Information has been updated!')
