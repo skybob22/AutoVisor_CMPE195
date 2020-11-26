@@ -14,10 +14,10 @@ from .algorithm import generateRoadmap
 
 # Create your views here.
 def home(request):
-	student = Student.objects.get(user=request.user)
+	student_exists = Student.objects.filter(user=request.user).exists()
 	context = {
 		'posts': Post.objects.all(),
-		'student': student
+		'student_exists': student_exists
 	}
 	return render(request, 'schedule/home.html', context)
 
@@ -120,7 +120,41 @@ def preferredCourse_delete(request):
 def community(request):
 	if Student.objects.filter(user=request.user).exists() is False:
 		return redirect("student")
-	return render(request, 'schedule/community.html', {'title': 'Roadmap'})
+	student = Student.objects.get(user=request.user)
+	friends = student.friendRequests
+	context = {
+		'friends': friends
+	}
+	return render(request, 'schedule/community.html', context)
+
+@login_required
+def community_portal(request):
+	if Student.objects.filter(user=request.user).exists() is False:
+		return redirect("student")
+	return render(request, 'schedule/community.html', {})
+
+@login_required
+def send_friendreq(request):
+	if Student.objects.filter(user=request.user).exists() is False:
+		return redirect("student")
+	student = Student.objects.get(user=request.user)
+	z_form = Send_Friend_Form(request.POST or None)
+	if z_form.is_valid():
+		data = z_form.cleaned_data['request_ID']
+		print(data)
+		temp = student.addFriend(data)
+		if temp is None:
+			messages.warning(request, 'Student ID does not exist!')
+		else:
+			messages.success(request,'Friend request has been sent to '+str(temp))
+
+		return redirect("community_portal")
+
+	context = {
+		'z_form': z_form
+	}
+
+	return render(request, 'schedule/send_friendreq.html', context)
 
 @login_required
 def transcript(request):

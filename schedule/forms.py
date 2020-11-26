@@ -34,6 +34,9 @@ class PreferredCourseDeleteForm(forms.Form):
 class UserPreferenceForm(forms.ModelForm):
     course = forms.ModelMultipleChoiceField(queryset=Course.objects.all())
 
+class Send_Friend_Form(forms.Form):
+    request_ID = forms.CharField()
+    
 ############### Student Preference #################
 class Select_GE_forms(forms.ModelForm):
 
