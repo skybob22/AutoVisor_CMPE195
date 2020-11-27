@@ -127,7 +127,7 @@ def getMissingGEAreas(user,countPlanned=True,countInProgress=True):
         studentSchedules = SemesterSchedule.objects.filter(id__in=user.student.roadmap.semesterSchedules.all())
         currentSemSchedule = studentSchedules.filter(year=currentYear).filter(term=currentTerm)
         currentGEs = Course.objects.filter(id__in=AllGECourses).filter(id__in=currentSemSchedule.values('courses'))
-        if len(currentSemSchedule) > 0:
+        if currentSemSchedule.exists():
             # Student has roadmap for the current semester
             completedGECourses = (completedGECourses | Course.objects.filter(id__in=currentGEs))
 
@@ -154,7 +154,7 @@ def getMissingGEAreas(user,countPlanned=True,countInProgress=True):
         satisfyingCourses = finishedGECourses.filter(GEArea__in=requirement.GEAreas.all()).distinct()
         if requirement.numUnits is None and requirement.numCourses is None:
             # Number of units/courses does not matter, only that area is fulfilled
-            if len(satisfyingCourses) > 0:
+            if satisfyingCourses.exists():
                 uncompletedRequirements.pop(requirement)
         elif requirement.numUnits is not None and requirement.numCourses is None:
             # Number of courses doesn't matter, but need to take a certain number of units
@@ -241,10 +241,9 @@ def getPassedClasses(user,countInProgress=False):
     coursesPassed = Course.objects.none()
 
     for trGrade in coursesTaken:
-
         #Check the core classes
         catGrade = CatalogueGrade.objects.filter(catalogue=user.student.catalogue).filter(course=trGrade.course)
-        if len(catGrade) > 0 and trGrade.grade in gradeOrBetter(catGrade.get().grade):
+        if catGrade.exists() and trGrade.grade in gradeOrBetter(catGrade.get().grade):
             #Is a core class, has a required grade
             courseQuery = Course.objects.filter(id=catGrade.get().course.id)
             coursesPassed = (coursesPassed | courseQuery)
@@ -258,6 +257,29 @@ def getPassedClasses(user,countInProgress=False):
         currentSemSchedule = studentSchedules.filter(year=currentYear).filter(term=currentTerm)
         currentClasses = Course.objects.filter(id__in=currentSemSchedule.values('courses'))
         coursesPassed = (coursesPassed | currentClasses)
+
+    return coursesPassed
+
+##
+# @brief Gets a list of SJSU classes equivalent to the user's transfer classes
+# @param user The logged in user
+# @return a Django Queryse of type 'Course' containing all the classes equivalent to the user's transfer courses
+##
+def getEquivalentTransferClasses(user):
+    transferCourses = TransferGrade.objects.filter(transcript=user.student.transcript)
+    coursesPassed = Course.objects.none()
+
+    for trGrade in transferCourses:
+        #Get the SJSU equivalent class
+        SJSUCourse = Articulation.objects.get(course=trGrade.course).SJSUCourse
+
+        #Check the core classes that have a required grade
+        catGrade = CatalogueGrade.objects.filter(catalogue=user.student.catalogue).filter(course=SJSUCourse)
+        if catGrade.exists() and trGrade.grade in gradeOrBetter(catGrade.get().grade):
+            #It is a core class which has a required grade
+            coursesPassed = (coursesPassed | Course.objects.filter(id=SJSUCourse.id))
+        elif trGrade.grade in gradeOrBetter('c-'):
+            coursesPassed = (coursesPassed | Course.objects.filter(id=SJSUCourse.id))
 
     return coursesPassed
 

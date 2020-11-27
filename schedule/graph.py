@@ -5,6 +5,7 @@ class CourseNode:
         self.preReqs = []
         self.coReqs = []
         self.postReqs = []
+        self.seqReqs = []
 
         self.SJSUCourse = None
         self.TransferCourse = None
@@ -42,15 +43,17 @@ class Graph:
     def __init__(self,user,rescheduleCurrent=False):
         self.user = user
 
-        self.nodes = dict() #Key = 'CMPE 135', value = Node()
-        self.standby = dict() #Key = 'CMPE 135', value = Node()
+        self.nodes = dict() #Example Key = 'CMPE 135', value = Node()
+        self.standby = dict() #Example Key = 'CMPE 135', value = Node()
         self.rootNodes = set()
         self._createGraph(rescheduleCurrent)
 
     def _createGraph(self,rescheduleCurrent=False):
         #Count in-progress classes as completed to avoid rescheduling them again
         passedClasses = getPassedClasses(self.user,countInProgress=not rescheduleCurrent)
-        self.passedClasses = passedClasses
+        #Count completed transfer courses as passed
+        transferedClasses = getEquivalentTransferClasses(self.user)
+        self.passedClasses = (passedClasses | transferedClasses.exclude(id__in=passedClasses.values('id')))
 
         coreToTake = self.user.student.catalogue.courses.exclude(id__in=passedClasses.values('id'))
         if self.user.student.separateSV:
@@ -62,8 +65,6 @@ class Graph:
 
         #Combine list to get all the courses to take, discarding duplicates
         toSchedule = (coreToTake | (optionalToTake.exclude(id__in=coreToTake.values('id'))))
-
-        # TODO: Check courses from transfer that articulate
 
         for course in toSchedule:
             self._addCourse(course)
@@ -100,8 +101,7 @@ class Graph:
         courseNode = CourseNode()
         #Is course Transfer
         if type(course) == TransferCourse:
-            #TODO: Implement transfer courses
-            pass
+            return None
         else:
             courseNode.SJSUCourse = course
 
@@ -150,10 +150,17 @@ class Graph:
             if isRoot:
                 self.rootNodes.add(courseNode)
 
+        #Add any oredered-requirement nodes
+        if len(course.sequential.all()) > 0:
+            for seqReq in course.sequential.all():
+                seqReqNode = self._addCourse(seqReq)
+                if seqReq is not None:
+                    courseNode.seqReqs.append(seqReqNode)
+
         #Now that node is added, update standby nodes in case is optional requirement
         self._updateStandby(courseNode)
 
         return courseNode
 
     def _userPassed(self,course):
-        return len(self.passedClasses.filter(id=course.id)) > 0
+        return self.passedClasses.filter(id=course.id).exists()
