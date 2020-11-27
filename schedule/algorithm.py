@@ -4,7 +4,7 @@ from .graph import CourseNode, Graph
 from .genetic import GeneticSimulation
 import random
 import time
-
+import matplotlib.pyplot as plt
 
 ##
 # @brief Generates a roadmap for the user based on preferences
@@ -231,12 +231,19 @@ class RoadMapGenerator:
             if not node.max_sem_level:
                 node.max_sem_level = self._num_semester_left - len(longest_chain)
 
+            #TODO: Fix this
+            AMS = Course.objects.filter(department='AMS').filter(courseID='1A')
+            if node.getCourse() in AMS.all():
+                node.max_sem_level = min(node.max_sem_level,4)
+
             for coReqNode in node.coReqs:
                 if coReqNode.max_sem_level is None:
                     coReq_longest_chain = self._traverse(coReqNode)
                     coReqNode.max_sem_level = self._num_semester_left - len(coReq_longest_chain)
-                if coReqNode.max_sem_level > node.max_sem_level:
-                    coReqNode.max_sem_level = node.max_sem_level
+                coReqNode.max_sem_level = min(node.max_sem_level,coReqNode.max_sem_level)
+            for seqReqNode in node.seqReqs:
+                seqReqNode.max_sem_level = node.max_sem_level+1
+
             if node.max_sem_level < 0:
                 raise UserWarning("Not enough time left to complete class")
 
@@ -278,6 +285,9 @@ class RoadMapGenerator:
                     candidateNode = moveCandidates[index]
                     if roadmap.unitsInSemester(i - 1) + candidateNode.getNumUnits() <= self._maxSemUnits[i - 1]:
                         roadmap.placeCourse(candidateNode, i - 1)
+                        if len(candidateNode.seqReqs) > 0:
+                            for seqNode in candidateNode.seqReqs:
+                                roadmap.placeCourse(seqNode,i)
                     moveCandidates.remove(candidateNode)
 
         #Do several passes trying to fill in empty gaps
@@ -285,12 +295,18 @@ class RoadMapGenerator:
             for i in range(numSemestersLeft):
                 unitsToSpare = self._maxSemUnits[i] - roadmap.unitsInSemester(i)
                 if unitsToSpare > 0:
-                    for course in roadmap.courseDict:
+                    courseList = list(roadmap.courseDict.keys())
+                    random.shuffle(courseList)
+                    for course in courseList:
                         if course.getNumUnits() > unitsToSpare or roadmap.getSemesterTaken(course) <= i:
                             continue
+                        if len(course.seqReqs) > 0:
+                            continue
                         if roadmap.maxCoreqSemester(course) <= i and roadmap.maxPrereqSemester(course) < i:
-                            roadmap.placeCourse(course,i)
-                            unitsToSpare = self._maxSemUnits[i] - roadmap.unitsInSemester(i)
+                            #Want to pull courses forward, not backwards
+                            if roadmap.getSemesterTaken(course) > i:
+                                roadmap.placeCourse(course,i)
+                                unitsToSpare = self._maxSemUnits[i] - roadmap.unitsInSemester(i)
                         if unitsToSpare <= 0:
                             break
 
@@ -308,6 +324,7 @@ class RoadMapGenerator:
         roadmap = []
         if self._genNew or not self.user.student.roadmap:
             #Do genetic aglroithm
+            #roadmap = self._getGen0Candidate().getCourseRoadmap()
             roadmap = self._geneticAlgorithm().getCourseRoadmap()
             roadmap = [i for i in roadmap if i != []]  # Remove any empty semesters
 
@@ -381,8 +398,8 @@ class RoadMapGenerator:
         student.roadmap = newRoadmap
         student.save()
 
-
-    def _geneticAlgorithm(self):
+    #TODO: Remove logging/graphs
+    def _geneticAlgorithm(self,logging=False):
         self._initGeneticVariables()
         start = time.time()
         sim = GeneticSimulation(gen0Function=self._getGen0Candidate,
@@ -395,11 +412,24 @@ class RoadMapGenerator:
                         mutationProbability=0.10,
                         survivalRate=0.55,
                         safteyMargin=1,
-                        logging=True)
+                        logging=logging)
 
         sim.runSimulation()
 
-
+        # Temporary logging
+        if logging:
+            log = sim.getLog()
+            x = [i for i in log.keys()]
+            avgFit = [i[0] for _, i in log.items()]
+            maxFit = [i[1] for _, i in log.items()]
+            minFit = [i[2] for _, i in log.items()]
+            plt.plot(x, avgFit, label='Average Fitness')
+            plt.plot(x, maxFit, label='Max Fitness')
+            plt.plot(x, minFit, label='Min Fitness')
+            plt.ylabel('Fitness')
+            plt.xlabel('Generation')
+            plt.legend()
+            plt.show()
 
         end = time.time()
         print("Genetic Algorithm took {0:.2f}s".format(end-start))
@@ -472,6 +502,11 @@ class RoadMapGenerator:
                     if organism.maxCoreqSemester(node) > semester:
                         #Coreqs are scheduled after course is taken
                         return 0.2
+
+                #Check that classes are in correct order
+                for sNode in node.seqReqs:
+                   if organism.getSemesterTaken(sNode) != semester+1:
+                    return 0.2
         return 1
 
         #Too many units in certain semester: max 17 for first several semester, 19 later? Petition for up to 21?
