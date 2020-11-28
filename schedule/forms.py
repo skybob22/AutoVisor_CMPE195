@@ -120,7 +120,7 @@ class Select_GE_forms(forms.Form):
 
         self.fields['course'].queryset = course
 
-    course = forms.ModelChoiceField(queryset=None, required = False) #can add required = False
+    course = forms.ModelChoiceField(queryset=None,required=False) #can add required = False
 
 
 class Select_ELEC_forms(forms.Form):

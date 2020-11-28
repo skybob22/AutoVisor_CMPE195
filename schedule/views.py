@@ -323,10 +323,15 @@ def GE_Pref(request):
 	reqList = getMissingGEAreas(user=request.user)
 
 	tlist = []
-	for item in reqList:
+	for i in range(len(reqList)):
+		item = reqList[i]
 		temp = item[0]
-		z_form = Select_GE_forms(request.POST or None, user=request.user, GEReq=temp)
+		z_form = Select_GE_forms(request.POST or None,user=request.user,GEReq=temp,prefix=str(i))
 		tlist.append((z_form, temp))
+
+	if len(tlist) == 0:
+		messages.info(request, 'All GEs are accounted for')
+		return redirect("Preference")
 
 	valid = True
 	for z_form,_ in tlist:
@@ -335,7 +340,6 @@ def GE_Pref(request):
 
 	if valid:
 		for z_form,_ in tlist:
-			a = z_form
 			data = z_form.cleaned_data['course']
 			if data is None or data in preferred.all():
 				continue
