@@ -19,10 +19,10 @@ def generateRoadmap(user,genNew=False,rescheduleCurrent=False):
     start = time.time()
 
     # TODO: Reset argument when no longer testing
-    courseGraph = Graph(user,rescheduleCurrent=True)
+    courseGraph = Graph(user,rescheduleCurrent=rescheduleCurrent)
     generator = RoadMapGenerator(user,courseGraph)
     # TODO: Reset the arguments to the proper default (genNew = False, save=True)
-    generator.setParameters(genNew=True,save=False,rescheduleCurrent=True)
+    generator.setParameters(genNew=genNew,rescheduleCurrent=rescheduleCurrent)
 
     roadmap = generator.getRoadmap()
 

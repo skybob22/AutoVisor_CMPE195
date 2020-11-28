@@ -440,7 +440,7 @@ class Student(models.Model):
 		if student is None and sID is None:
 			return None
 		elif student is None:
-			query = self.friendRequests.all().filter(studentID=sID)
+			query = Student.objects.filter(studentID=sID)
 			if query.exists():
 				student = query.get()
 			else:

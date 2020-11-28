@@ -1,5 +1,6 @@
 from .models import *
 import datetime
+import math
 
 ##
 # @brief Gets a tuple of all the grades better than the specified grade
@@ -103,11 +104,72 @@ def getTechElectives(major=None,user=None):
 
 ##
 # @brief Gets all the GE area that the user has not taken, and has not planned to take
+# Does not include requirements (like A1,A2,A3) that are likely to be covered by selecting other requirements
+# May be overly aggressive, so may require multiple selections
 # @param user The logged in user
 # @param countPlanned Whether to count planned GEs as "completed"
 # @param countInProgress Whether to count in-progress GEs as "completed"
 # Note: if countPlanned is set to true, the result will also include in-progress classes
-# @return Array formatted as tuple(requirement,numCourses,numUnits)
+# @return Array formatted as list[requirement,numCourses,numUnits]
+##
+def getMissingGE_NoOverlap(user,countPlanned=True,countInProgress=True):
+    reqList = getMissingGEAreas(user,countPlanned,countInProgress)
+    singleList = [i for i in reqList if len(i[0].GEAreas.all()) == 1]
+    multiList = [i for i in reqList if len(i[0].GEAreas.all()) > 1]
+
+    for req in multiList:
+        singReqMatches = [i for i in singleList if i[0].GEAreas.get() in req[0].GEAreas.all()]
+        for item in singReqMatches:
+            unitsToSubtract = 0
+            coursesToSubtract = 0
+
+            unitQuery = Course.objects.filter(GEArea=item[0].GEAreas.get())
+            if unitQuery.exists():
+                averageUnits = sum(unitQuery.values_list('numUnits', flat=True)) / len(unitQuery)
+
+            # Likely will need to take 1 course, assuming average number of units
+            if item[1] is None and item[2] is None:
+                coursesToSubtract = 1
+                if unitQuery.exists():
+                    unitsToSubtract = averageUnits
+
+            # Need to take item[1] number of courses, assuming average number of units * item[1] courses
+            elif item[1] is not None and item[2] is None:
+                coursesToSubtract = item[1]
+                if unitQuery.exists():
+                    unitsToSubtract = averageUnits * item[1]
+
+            # Need to take item[2] number of units, assuming (item[2]/average number of units) courses
+            elif item[1] is None and item[2] is not None:
+                unitsToSubtract = item[2]
+                if unitQuery.exists():
+                    coursesToSubtract = math.ceil(unitsToSubtract/averageUnits)
+
+            # Need to take item[1] number of courses worth at least item[2] number of units each
+            elif item[1] is not None and item[2] is not None:
+                coursesToSubtract = item[1]
+                unitsToSubtract = item[2]
+                if unitQuery.exists():
+                    unitsToSubtract = max(item[2],coursesToSubtract*averageUnits)
+
+            #Update number of units/courses left in requirement
+            if req[1] is not None:
+                req[1] -= coursesToSubtract
+            if req[2] is not None:
+                req[2] -= unitsToSubtract
+
+        if (req[1] is None or req[1] <= 0) and (req[2] is None or req[2] <= 0):
+            reqList.remove(req)
+
+    return reqList
+
+##
+# @brief Gets all the GE area that the user has not taken, and has not planned to take
+# @param user The logged in user
+# @param countPlanned Whether to count planned GEs as "completed"
+# @param countInProgress Whether to count in-progress GEs as "completed"
+# Note: if countPlanned is set to true, the result will also include in-progress classes
+# @return Array formatted as list[requirement,numCourses,numUnits]
 ##
 def getMissingGEAreas(user,countPlanned=True,countInProgress=True):
     AllGECourses = Course.objects.filter(GEArea__isnull=False).distinct()
@@ -182,10 +244,12 @@ def getMissingGEAreas(user,countPlanned=True,countInProgress=True):
             else:
                 uncompletedRequirements[requirement][0] -= len(satisfyingCourses)
 
-    #Array formatted as tuple(requirement,numCourses,numUnits)
+    #Array formatted as list[requirement,numCourses,numUnits]
     requirementArray = []
     for requirement, values in uncompletedRequirements.items():
-        requirementArray.append((requirement, values[0], values[1]))
+        requirementArray.append([requirement, values[0], values[1]])
+
+    requirementArray.sort(key=lambda tup: (len(tup[0].GEAreas.all()),str(tup[0].GEAreas.all()[0])))
 
     return (requirementArray)
 

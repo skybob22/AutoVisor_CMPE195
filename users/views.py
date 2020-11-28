@@ -51,6 +51,7 @@ def student(request):
 		obj.transcript = transcript
 		obj.save()
 		messages.success(request, f'You Student Information has been created!')
+		return redirect("schedule-home")
 
 
 

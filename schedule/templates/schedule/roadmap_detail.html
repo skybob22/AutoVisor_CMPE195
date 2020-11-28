@@ -7,7 +7,7 @@
         <tbody>
 
 					{% for product_type, products in semSchedules %}
-							<th>{{ product_type}}</th>
+							<th>{{ product_type.1 }} {{ product_type.0 }}</th>
 
 				    	{% for product in products %}
 							<tr align="left">
