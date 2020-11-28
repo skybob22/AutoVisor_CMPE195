@@ -175,7 +175,7 @@ def getMissingGEAreas(user,countPlanned=True,countInProgress=True):
                 uncompletedRequirements[requirement][0] -= len(satisfyingCourses)
 
         elif requirement.numUnits is not None and requirement.numCourses is not None:
-            # Requirement dicates at least numCourses classes which must be at lean numUnits units
+            # Requirement dictates at least numCourses classes which must be at lean numUnits units
             satisfyingCourses = satisfyingCourses.filter(numUnits__gte=requirement.numUnits)
             if len(satisfyingCourses) >= requirement.numCourses:
                 uncompletedRequirements.pop(requirement)

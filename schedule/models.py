@@ -265,7 +265,7 @@ class Catalogue(models.Model):
 		ordering = ('department','year','term')
 
 	def __str__(self):
-		return str(self.department) + ' ' + str(self.term) + ' ' + str(self.year) + ''
+		return str(self.department)
 
 	def addCourse(self,newCourse,grade='C-'):
 		#TODO: Add GE Req checking
