@@ -7,7 +7,9 @@
     <h1><mark> Community Portal</h1></mark>
 
  <hr>
-    <h4>  <button id="myButton" class="button button1" >Accept/Decline</button>
+    <h4>  <button id="myButton" class="button button1" >Accept Friend request</button>
+
+      <button id="myButtonsss" class="button button3" >Decline Friend request</button>
 
     <button id="myButtons" class="button button2">Send Friend request</button>
 
@@ -15,24 +17,41 @@
   <table>
         <thead>
           <tr>
-              <th>Friend Request</th>
+              <th>Friend Requests</th>
           </tr>
         </thead>
 
         <tbody>
-        {% for friendlist in friends.all %}
-            <tr>
-            <td>{{friendlist}}</td>
-          </tr>
-        {% endfor %}
+          {% for friendreqs in student.friendRequests.all %}
+              <tr>
+              <td>{{friendreqs}}</td>
+            </tr>
+          {% endfor %}
         </tbody>
-      </table>
+    </table>
+
+
+  <table>
+        <thead>
+          <tr>
+              <th>Friend Lists</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for friends in student.friends.all %}
+              <tr>
+              <td>{{friends}}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+    </table>
 
 
 
 <script type="text/javascript">
     document.getElementById("myButton").onclick = function () {
-          window.location.href = "/Add_course"
+          window.location.href = "/community/accept_friendreq"
     };
 </script>
 
@@ -41,6 +60,19 @@
           window.location.href = "/community/send_friendreq"
     };
 </script>
+
+<script type="text/javascript">
+    document.getElementById("myButtonss").onclick = function () {
+          window.location.href = "/community/delete_friend"
+    };
+</script>
+
+<script type="text/javascript">
+    document.getElementById("myButtonsss").onclick = function () {
+          window.location.href = "/community/decline_friendreq"
+    };
+</script>
+
 
 
 </html>

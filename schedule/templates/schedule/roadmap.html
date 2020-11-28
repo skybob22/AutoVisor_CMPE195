@@ -1,28 +1,21 @@
 {% extends "schedule/base.html" %}
 {% block content %}
 	<h1>Roadmap Page!</h1>
+	 <h2><p>{{ rp1 }}</p></h2>
+	<br>
 	<form method="get">
-	<input type="submit" class="btn" value="Click" name="print_btn">
-
-
+	<input type="submit" class="btn" value="Generate New Roadmap" name="gen_btn">
 
 	</form>
 		    <div class="media-body">
-		      <h2 class="account-heading">{{ rp }}</h2>
+		      <h2 class="account-heading">{{ rp2 }}</h2>
 	    	</div>
+	<br>
+	<form method="get">
+	<input type="submit" class="btn" value="View Roadmap" name="view_btn">
 
-
-	<html>
-
-		<button id="myButton1" class="float-right submit-button" >Student Preference</button>
-		<script type="text/javascript">
-			document.getElementById("myButton1").onclick = function () {
-				  window.location.href = "/Preference"
-			};
-		</script>
-
-	</html>
-
-
-
+	</form>
+		    <div class="media-body">
+		      <h2 class="account-heading">{{ rp3 }}</h2>
+	    	</div>
 {% endblock content %}

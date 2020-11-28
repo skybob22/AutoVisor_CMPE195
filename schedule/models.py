@@ -477,3 +477,17 @@ class Student(models.Model):
 			return
 		self.friendRequests.remove(student)
 		self.save()
+		
+	def deleteFriend(self,student=None,sID=None):
+		if student is None and sID is None:
+			return
+		elif student is None:
+			query = self.friends.all().filter(studentID=sID)
+			if query.exists():
+				student = query.get()
+			else:
+				return
+		elif not self.friends.all().filter(studentID=student.studentID).exists():
+			return
+		self.friends.remove(student)
+		self.save()

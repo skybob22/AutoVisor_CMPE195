@@ -30,7 +30,28 @@
         </tbody>
       </table>
 
+      <h4>  <button id="myButton1" class="button button2" >Add Transfer Course</button>
 
+      <button id="myButtons1" class="button button3">Delete Transfer Course</button></h4>
+    <table>
+          <thead>
+            <tr>
+                <th>School</th>
+                <th>Course</th>
+                <th>Grade</th>
+            </tr>
+          </thead>
+
+          <tbody>
+          {% for transferGrade in transferGrades %}
+              <tr>
+              <td>{{transferGrade.course.school}}</td>
+              <td>{{transferGrade.course.courseID}}</td>
+              <td>{{transferGrade.grade}}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
 
 <script type="text/javascript">
     document.getElementById("myButton").onclick = function () {
@@ -44,6 +65,17 @@
     };
 </script>
 
+<script type="text/javascript">
+    document.getElementById("myButton1").onclick = function () {
+          window.location.href = "/Add_Transfer"
+    };
+</script>
+
+<script type="text/javascript">
+    document.getElementById("myButtons1").onclick = function () {
+          window.location.href = "/Delete_Transfer"
+    };
+</script>
 </html>
 
 {% endblock content %}

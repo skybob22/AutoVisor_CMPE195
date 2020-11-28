@@ -13,9 +13,14 @@ from .algorithm import generateRoadmap
 
 
 # Create your views here.
-def home(request): 
+def home(request):
+	load_button = True
+	if request.user.is_authenticated:
+		if Student.objects.filter(user=request.user).exists():
+			load_button = False
 	context = {
-		'posts': Post.objects.all()
+		'posts': Post.objects.all(),
+		'load_button': load_button
 	}
 	return render(request, 'schedule/home.html', context)
 
@@ -27,16 +32,31 @@ semList=''
 
 @login_required
 def roadmap(request):
+	rp1 = ''
 	if Student.objects.filter(user=request.user).exists() is False:
 		return redirect("student")
-	rp = 'Please Click to Generate Roadmap!'
-	if(request.GET.get('print_btn')):
-		global semList
+	student = Student.objects.get(user=request.user)
+	if len(getMissingGEAreas(user=request.user)):
+		rp1 = 'Please Fill Out Your GE Preferences Before Generating Roadmap'
+	rp2 = 'Please Click to Generate Roadmap!'
+	rp3 = 'Please Click to View Roadmap!'
+
+	global semList
+	if(request.GET.get('gen_btn')):
 		semList = generateRoadmap(request.user)
-		student = Student.objects.get(user=request.user)
-		rp = 'Generating Roadmap... Please Wait.'
+		rp2 = 'Generating Roadmap... Please Wait.'
 		return redirect("roadmap_generated")
-	return render(request, 'schedule/roadmap.html', {'rp': rp})
+	if(request.GET.get('view_btn')):
+		semList = generateRoadmap(request.user, genNew=True, rescheduleCurrent=False)
+		rp3 = 'Loading Roadmap... Please Wait.'
+		return redirect("roadmap_generated")
+
+	context = {
+		'rp1': rp1,
+		'rp2': rp2,
+		'rp3': rp3
+	}
+	return render(request, 'schedule/roadmap.html', context)
 
 @login_required
 def roadmap_generated(request):
@@ -82,7 +102,7 @@ def transcriptGrade_delete(request):
 		return redirect("student")
 	student = Student.objects.get(user=request.user)
 	transcript = student.transcript
-	d_form = TranscriptGradeDeleteForm(request.POST, user=request.user)
+	d_form = TranscriptGradeDeleteForm(request.POST or None, user=request.user)
 	if d_form.is_valid():
 		data = d_form.cleaned_data['course']
 		transcriptGrade = TranscriptGrade.objects.get(transcript=transcript, course=data.course)
@@ -96,12 +116,31 @@ def transcriptGrade_delete(request):
 	return render(request, 'schedule/transcriptGrade_delete.html',  context)
 
 @login_required
+def transferGrade_delete(request):
+	if Student.objects.filter(user=request.user).exists() is False:
+		return redirect("student")
+	student = Student.objects.get(user=request.user)
+	transcript = student.transcript
+	g_form = TransferGradeDeleteForm(request.POST or None, user=request.user)
+	if g_form.is_valid():
+		data = g_form.cleaned_data['course']
+		transferGrade = TransferGrade.objects.get(transcript=transcript, course=data.course)
+		messages.success(request,(transferGrade.course, 'has been deleted!'))
+		transferGrade.delete()
+		return redirect("index")
+
+	context = {
+			'g_form': g_form
+	}
+	return render(request, 'schedule/transferGrade_delete.html',  context)
+
+@login_required
 def preferredCourse_delete(request):
 	if Student.objects.filter(user=request.user).exists() is False:
 		return redirect("student")
 	student = Student.objects.get(user=request.user)
 	preferred = student.prefCourseList
-	p_form = PreferredCourseDeleteForm(request.POST, user=request.user)
+	p_form = PreferredCourseDeleteForm(request.POST or None, user=request.user)
 	if p_form.is_valid():
 		data = p_form.cleaned_data['course']
 		preferredCourse = PreferredCourse.objects.get(student = student, course=data.course)
@@ -119,9 +158,8 @@ def community(request):
 	if Student.objects.filter(user=request.user).exists() is False:
 		return redirect("student")
 	student = Student.objects.get(user=request.user)
-	friends = student.friendRequests
 	context = {
-		'friends': friends
+		'student': student
 	}
 	return render(request, 'schedule/community.html', context)
 
@@ -139,7 +177,6 @@ def send_friendreq(request):
 	z_form = Send_Friend_Form(request.POST or None)
 	if z_form.is_valid():
 		data = z_form.cleaned_data['request_ID']
-		print(data)
 		temp = student.addFriend(data)
 		if temp is None:
 			messages.warning(request, 'Student ID does not exist!')
@@ -155,15 +192,70 @@ def send_friendreq(request):
 	return render(request, 'schedule/send_friendreq.html', context)
 
 @login_required
+def accept_friendreq(request):
+	student = Student.objects.get(user=request.user)
+	friendreqs = student.friendRequests
+	a_form = Accept_Friend_Form(request.POST or None, user=request.user)
+	if a_form.is_valid():
+		data = a_form.cleaned_data['friendRequests']
+		print(data)
+		student.acceptFriend(data)
+		messages.success(request,(data.user, ' is now your Friend!'))
+		return redirect("community_portal")
+
+	context = {
+			'a_form': a_form
+	}
+	return render(request, 'schedule/accept_friendreq.html', context)
+
+
+@login_required
+def decline_friendreq(request):
+	student = Student.objects.get(user=request.user)
+	friendreqs = student.friendRequests
+	y_form = Accept_Friend_Form(request.POST or None, user=request.user)
+	if y_form.is_valid():
+		data = y_form.cleaned_data['friendRequests']
+		print(data)
+		student.declineFriend(data)
+		messages.success(request,(data.user, ' is now Declined!'))
+		return redirect("community_portal")
+
+	context = {
+			'y_form': y_form
+	}
+	return render(request, 'schedule/decline_friendreq.html', context)
+
+
+@login_required
+def delete_friend(request):
+	student = Student.objects.get(user=request.user)
+	friends = student.friends
+	t_form = Delete_Friend_Form(request.POST or None, user=request.user)
+	if t_form.is_valid():
+		data = t_form.cleaned_data['friends']
+		print(data)
+		student.deleteFriend(data)
+		messages.success(request,(data.user, ' is now Deleted!'))
+		return redirect("community_portal")
+
+	context = {
+			't_form': t_form
+	}
+	return render(request, 'schedule/delete_friend.html',  context)
+
+
+@login_required
 def transcript(request):
 	if Student.objects.filter(user=request.user).exists() is False:
 		return redirect("student")
 	student = Student.objects.get(user=request.user)
 	transcript = student.transcript
 	transcriptGrade = TranscriptGrade.objects.filter(transcript=transcript)
-
+	transferGrade = TransferGrade.objects.filter(transcript=transcript)
 	context = {
-		'transcriptGrades': transcriptGrade
+		'transcriptGrades': transcriptGrade,
+		'transferGrades': transferGrade
 	}
 	return render(request, 'schedule/transcript.html', context)
 
@@ -188,39 +280,70 @@ def Add_course(request):
 	}
 	return render(request, 'schedule/Add_course.html', context)
 
+@login_required
+def TransferCourseAdd(request):
+	if Student.objects.filter(user=request.user).exists() is False:
+		return redirect("student")
+	student = Student.objects.get(user=request.user)
+	transcript = student.transcript
+	t_form = TransferCourseAddForm(request.POST or None)
+	if t_form.is_valid():
+		obj = t_form.save(commit=False)
+		obj.transcript = transcript
+		obj.save()
+		messages.success(request,('Transfer Course has been added!'))
+		return redirect("index")
+
+	context = {
+		't_form': t_form
+	}
+	return render(request, 'schedule/Add_TransferCourse.html', context)
 ########### Student Preference ###################
 
 
 @login_required
 def Preference(request):
-    student = Student.objects.get(user=request.user)
-    preferredCourse = PreferredCourse.objects.filter(student=student)
-    context = {
-	    'student': student,
+	if Student.objects.filter(user=request.user).exists() is False:
+		return redirect("student")
+	student = Student.objects.get(user=request.user)
+	preferredCourse = PreferredCourse.objects.filter(student=student)
+	context = {
+		'student': student,
 		'preferredCourses': preferredCourse
-    }
-    return render(request, 'schedule/Preference.html', context)
+	}
+	return render(request, 'schedule/Preference.html', context)
 
 # Todo: Form a connection to the database to save the values from the forms
 @login_required
 def GE_Pref(request):
+	if Student.objects.filter(user=request.user).exists() is False:
+		return redirect("student")
 	student = Student.objects.get(user=request.user)
-	GE_CourseList = student.prefCourseList
+	preferred = student.prefCourseList
 	reqList = getMissingGEAreas(user=request.user)
 
 	tlist = []
 	for item in reqList:
 		temp = item[0]
-		z_form = Select_GE_forms(request.POST, user=request.user, GEReq=temp)
+		z_form = Select_GE_forms(request.POST or None, user=request.user, GEReq=temp)
 		tlist.append((z_form, temp))
 
 	valid = True
 	for z_form,_ in tlist:
 		if not z_form.is_valid():
 			valid = False
+
 	if valid:
+		for z_form,_ in tlist:
+			a = z_form
+			data = z_form.cleaned_data['course']
+			if data is None or data in preferred.all():
+				continue
+
+			preferred.add(data)
+			student.save()
 		messages.success(request, 'Your Student GE Preference Information has been updated!')
-		return render(request, 'schedule/GE_Pref.html')
+		return redirect("Preference")
 
 
 	context = {
@@ -235,7 +358,7 @@ def Elec_Pref(request):
 		return redirect("student")
 	student = Student.objects.get(user=request.user)
 	preferred = student.prefCourseList
-	y_form = Select_ELEC_forms(request.POST, user=request.user)
+	y_form = Select_ELEC_forms(request.POST or None, user=request.user)
 	if y_form.is_valid():
 		data = y_form.cleaned_data['course']
 		preferred.add(data)
@@ -250,17 +373,16 @@ def Elec_Pref(request):
 
 @login_required
 def General_Pref(request):
-    if Student.objects.filter(user=request.user).exists() is False:
-        return redirect("student")
-    student = Student.objects.get(user=request.user)
-    q_form = Select_GEN_forms(request.POST or None)
-    if q_form.is_valid():
-        q_form = Select_GEN_forms(request.POST, instance = student)
-        q_form.save()
-        messages.success(
-            request, f'Your Student Preference Information has been updated!')
-        return render(request, 'schedule/General_Pref.html')
-    context = {
-        'q_form': q_form
-    }
-    return render(request, 'schedule/General_Pref.html', context)
+	if Student.objects.filter(user=request.user).exists() is False:
+		return redirect("student")
+	student = Student.objects.get(user=request.user)
+	q_form = Select_GEN_forms(request.POST or None, instance=student)
+	if q_form.is_valid():
+		q_form = Select_GEN_forms(request.POST or None, instance = student)
+		q_form.save()
+		messages.success(request, 'Your Student Preference Information has been updated!')
+		return redirect("Preference")
+	context = {
+	'q_form': q_form
+	}
+	return render(request, 'schedule/General_Pref.html', context)
