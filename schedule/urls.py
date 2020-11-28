@@ -20,5 +20,11 @@ urlpatterns = [
     path('General_Pref/', views.General_Pref, name='General_Pref'),
     path('Preference/delete', views.preferredCourse_delete, name='pref-delete'),
     path('community/', views.community_portal, name='community_portal'),
-    path('community/send_friendreq', views.send_friendreq, name='send_friendreq')    
+    path('community/send_friendreq', views.send_friendreq, name='send_friendreq'),
+    path('Add_Transfer', views.TransferCourseAdd, name='Add_Transfer'),
+    path('community/send_friendreq', views.send_friendreq, name='send_friendreq'),
+    path('community/delete_friend', views.delete_friend, name='delete_friend'),
+    path('community/accept_friendreq', views.accept_friendreq, name='accept_friendreq'),
+    path('community/decline_friendreq', views.decline_friendreq, name='decline_friendreq'),
+    path('Delete_Transfer', views.transferGrade_delete, name='Delete_Transfer'),
 ]

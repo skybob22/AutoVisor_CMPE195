@@ -5,7 +5,9 @@
 <html>
 {% if user.is_authenticated %}
 <h1>Welcome to AutoVisor.</h1>
-<button id="myButton1" class="float-right submit-button" >Register Student</button>
+	{% if load_button %}
+	<button id="myButton1" class="float-right submit-button" >Register Student</button>
+	{% endif %}
 {% else %}
 <h1>AutoVisor</h1>
 <button id="myButton2" class="float-right submit-button" >Register User</button>

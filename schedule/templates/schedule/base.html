@@ -43,6 +43,7 @@
 	        <!-- Navbar Right Side -->
 	        <div class="navbar-nav">
 	        	{% if user.is_authenticated %}
+              <a class="navbar-brand mr-4" href="{% url 'Preference' %}">Preferences</a>
               <a class="navbar-brand mr-4" href="{% url 'schedule-community' %}">Community</a>
               <a class="navbar-brand mr-4" href="{% url 'schedule-transcript' %}">Transcript</a>
               <a class="navbar-brand mr-4" href="{% url 'schedule-roadmap' %}">Roadmap</a>

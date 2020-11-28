@@ -8,6 +8,15 @@ class Select_Department_CMPE_Form(forms.ModelForm):
         model = TranscriptGrade
         fields = ['course', 'grade']
 
+class TransferCourseAddForm(forms.ModelForm):
+
+    class Meta:
+        model = TransferGrade
+        fields = ['course', 'grade']
+
+    # course = forms.ModelChoiceField(queryset=TransferCourse.objects.all())
+
+
 class TranscriptGradeDeleteForm(forms.Form):
 
     class Meta:
@@ -17,6 +26,18 @@ class TranscriptGradeDeleteForm(forms.Form):
         self.user = kwargs.pop('user')
         super(TranscriptGradeDeleteForm, self).__init__(*args, **kwargs)
         self.fields['course'].queryset = TranscriptGrade.objects.filter(transcript=self.user.student.transcript)
+
+    course = forms.ModelChoiceField(queryset=None)
+
+class TransferGradeDeleteForm(forms.Form):
+
+    class Meta:
+        model = TransferGrade
+        fields = ['course']
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super(TransferGradeDeleteForm, self).__init__(*args, **kwargs)
+        self.fields['course'].queryset = TransferGrade.objects.filter(transcript=self.user.student.transcript)
 
     course = forms.ModelChoiceField(queryset=None)
 
@@ -37,7 +58,48 @@ class UserPreferenceForm(forms.ModelForm):
 
 class Send_Friend_Form(forms.Form):
     request_ID = forms.CharField()
-    
+
+
+class Accept_Friend_Form(forms.ModelForm):
+
+    class Meta:
+        model = Student
+        fields = ['friendRequests']
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super(Accept_Friend_Form, self).__init__(*args, **kwargs)
+
+        self.fields['friendRequests'].queryset = self.user.student.friendRequests.all()
+
+    friendRequests = forms.ModelChoiceField(queryset=None)
+
+
+class Decline_Friend_Form(forms.ModelForm):
+
+    class Meta:
+        model = Student
+        fields = ['friendRequests']
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super(Accept_Friend_Form, self).__init__(*args, **kwargs)
+
+        self.fields['friendRequests'].queryset = self.user.student.friendRequests.all()
+
+    friendRequests = forms.ModelChoiceField(queryset=None)
+
+class Delete_Friend_Form(forms.Form):
+
+    class Meta:
+        model = Student
+        fields = ['friends']
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super(Delete_Friend_Form, self).__init__(*args, **kwargs)
+
+        self.fields['friends'].queryset = self.user.student.friends.all()
+
+    friends = forms.ModelChoiceField(queryset=None)
+
 ############### Student Preference #################
 class Select_GE_forms(forms.Form):
 
@@ -58,7 +120,7 @@ class Select_GE_forms(forms.Form):
 
         self.fields['course'].queryset = course
 
-    course = forms.ModelChoiceField(queryset=None) #can add required = False
+    course = forms.ModelChoiceField(queryset=None, required = False) #can add required = False
 
 
 class Select_ELEC_forms(forms.Form):
@@ -80,4 +142,4 @@ class Select_GEN_forms(forms.ModelForm):
     class Meta:
         model = Student
         fields = ['startTerm', 'startYear',
-                  'numSemesters', 'currentTerm', 'currentYear']
+                  'numSemesters', 'currentTerm', 'currentYear', 'separateSV']
