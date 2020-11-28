@@ -8,13 +8,13 @@ class Select_Department_CMPE_Form(forms.ModelForm):
         model = TranscriptGrade
         fields = ['course', 'grade']
 
+
+########### Transcript stuff ###################
 class TransferCourseAddForm(forms.ModelForm):
 
     class Meta:
         model = TransferGrade
         fields = ['course', 'grade']
-
-    # course = forms.ModelChoiceField(queryset=TransferCourse.objects.all())
 
 
 class TranscriptGradeDeleteForm(forms.Form):
@@ -37,25 +37,14 @@ class TransferGradeDeleteForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
         super(TransferGradeDeleteForm, self).__init__(*args, **kwargs)
-        self.fields['course'].queryset = TransferGrade.objects.filter(transcript=self.user.student.transcript)
+        self.fields['course'].queryset = TransferCourse.objects.filter(id__in=TransferGrade.objects.filter(transcript=self.user.student.transcript).values('course'))
 
     course = forms.ModelChoiceField(queryset=None)
 
-class PreferredCourseDeleteForm(forms.Form):
 
-    class Meta:
-        model = PreferredCourse
-        fields = ['course']
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super(PreferredCourseDeleteForm, self).__init__(*args, **kwargs)
-        self.fields['course'].queryset = PreferredCourse.objects.filter(student=self.user.student)
 
-    course = forms.ModelChoiceField(queryset=None)
 
-class UserPreferenceForm(forms.ModelForm):
-    course = forms.ModelMultipleChoiceField(queryset=Course.objects.all())
-
+########### Community Features ###################
 class Send_Friend_Form(forms.Form):
     request_ID = forms.CharField()
 
@@ -100,7 +89,25 @@ class Delete_Friend_Form(forms.Form):
 
     friends = forms.ModelChoiceField(queryset=None)
 
+
+
+
 ############### Student Preference #################
+class PreferredCourseDeleteForm(forms.Form):
+
+    class Meta:
+        model = PreferredCourse
+        fields = ['course']
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super(PreferredCourseDeleteForm, self).__init__(*args, **kwargs)
+        self.fields['course'].queryset = Course.objects.filter(id__in=PreferredCourse.objects.filter(student=self.user.student).values('course'))
+
+    course = forms.ModelChoiceField(queryset=None)
+
+class UserPreferenceForm(forms.ModelForm):
+    course = forms.ModelMultipleChoiceField(queryset=Course.objects.all())
+
 class Select_GE_forms(forms.Form):
 
     class Meta:
