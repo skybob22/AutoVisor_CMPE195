@@ -1,10 +1,11 @@
 {% extends "schedule/base.html" %}
 {% block content %}
 {% load static %}
+<link href="https://fonts.googleapis.com/css?family=Fredoka+One|Shadows+Into+Light&display=swap" rel="stylesheet">
 
 <html>
 {% if user.is_authenticated %}
-<h1>Welcome to AutoVisor.</h1>
+<h1><mark> Welcome to AutoVisor</h1></mark>
 	{% if load_button %}
 	<button id="myButton1" class="float-right submit-button" >Register Student</button>
 	{% endif %}
