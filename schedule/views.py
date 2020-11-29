@@ -41,6 +41,7 @@ semList=''
 @login_required
 def roadmap(request):
 	rp1 = ''
+	alert_flag = False
 	if Student.objects.filter(user=request.user).exists() is False:
 		return redirect("student")
 	student = Student.objects.get(user=request.user)
@@ -51,18 +52,21 @@ def roadmap(request):
 
 	global semList
 	if (request.GET.get('view_btn')):
-		semList = generateRoadmap(request.user)
 		rp2 = 'Loading Roadmap... Please Wait.'
+		semList = generateRoadmap(request.user)
+		alert_flag = True
 		return redirect("roadmap_generated")
 	if(request.GET.get('gen_btn')):
-		semList = generateRoadmap(request.user,genNew=True,rescheduleCurrent=False)
 		rp3 = 'Generating Roadmap... Please Wait.'
+		semList = generateRoadmap(request.user,genNew=True,rescheduleCurrent=False)
+		alert_flag = True
 		return redirect("roadmap_generated")
 
 	context = {
 		'rp1': rp1,
 		'rp2': rp2,
-		'rp3': rp3
+		'rp3': rp3,
+		'alert_flag': alert_flag
 	}
 	return render(request, 'schedule/roadmap.html', context)
 

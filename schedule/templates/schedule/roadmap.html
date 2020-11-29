@@ -1,21 +1,34 @@
 {% extends "schedule/base.html" %}
 {% block content %}
-	<h1>Roadmap Page!</h1>
-	 <h2><p>{{ rp1 }}</p></h2>
-	<br>
-	<form method="get">
-	<input type="submit" class="btn" value="View Roadmap" name="view_btn">
 
-	</form>
-		    <div class="media-body">
-		      <h2 class="account-heading">{{ rp2 }}</h2>
-	    	</div>
-	<br>
-	<form method="get">
-	<input type="submit" class="btn" value="Generate New Roadmap" name="gen_btn">
+<link href="https://fonts.googleapis.com/css?family=Fredoka+One|Shadows+Into+Light&display=swap" rel="stylesheet">
 
-	</form>
-		    <div class="media-body">
-		      <h2 class="account-heading">{{ rp3 }}</h2>
-	    	</div>
+<style>
+	h4 { color: black; padding:.2em; border-style:inset; background-color: #DCDCDC; }
+</style>
+
+<html>
+
+<h1><mark> Roadmap</h1></mark>
+ <h4><p>{{ rp1 }}</p></h4> 
+<br>
+<form method="get">
+<input type="submit" class="btn" value="View Roadmap" name="view_btn">
+
+</form>
+		<div class="media-body">
+			<h2> </h2>
+			<h4>{{ rp2 }}</h4>
+		</div>
+<br>
+<form method="get">
+<input type="submit" class="btn" value="Generate New Roadmap" name="gen_btn">
+
+</form>
+		<div class="media-body">
+			<h2> </h2>
+			<h4>{{ rp3 }}</h4>
+		</div>
+
+</html>
 {% endblock content %}
