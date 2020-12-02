@@ -11,17 +11,10 @@ import matplotlib.pyplot as plt
 # @param user The logged in user
 ##
 def generateRoadmap(user,genNew=False,rescheduleCurrent=False):
-
-    missingGE = getMissingGEAreas(user)
-    missingTech = getMissingTech(user)
-
-    #All classes are accounted for
     start = time.time()
 
-    # TODO: Reset argument when no longer testing
     courseGraph = Graph(user,rescheduleCurrent=rescheduleCurrent)
     generator = RoadMapGenerator(user,courseGraph)
-    # TODO: Reset the arguments to the proper default (genNew = False, save=True)
     generator.setParameters(genNew=genNew,rescheduleCurrent=rescheduleCurrent)
 
     roadmap = generator.getRoadmap()
@@ -272,7 +265,6 @@ class RoadMapGenerator:
                         movable = False
 
                     # Check if any coreqs exist
-                    # TODO: Handle moving sets of coreqs
                     if courseNode.coReqs and roadmap.maxCoreqSemester(courseNode) > i - 1:
                         movable = False
 
@@ -398,7 +390,7 @@ class RoadMapGenerator:
         student.roadmap = newRoadmap
         student.save()
 
-    #TODO: Remove logging/graphs
+    #TODO: Remove logging/graphs/timing
     def _geneticAlgorithm(self,logging=False):
         self._initGeneticVariables()
         start = time.time()
@@ -407,8 +399,8 @@ class RoadMapGenerator:
                               childFuntion=self._createChild,
                               mutationFunction=self._mutate)
 
-        sim.setParameters(populationSize=100,
-                        numGenerations=150,
+        sim.setParameters(populationSize=60,
+                        numGenerations=100,
                         mutationProbability=0.10,
                         survivalRate=0.55,
                         safteyMargin=1,
@@ -560,7 +552,6 @@ class RoadMapGenerator:
         score += 4 * courseResult
         return score
 
-    #TODO: Improve _mutate function to change oragnisms in a more useful way
     def _mutate(self,organism):
         #Define parameters here
         SEMESTER_SWAP_CHANCE = 10
@@ -584,8 +575,6 @@ class RoadMapGenerator:
             sem2 = random.choice([i for i in range(0,organism.getNumSemesters()) if i != sem1])
             organism.swapSemesters(sem1,sem2)
 
-    #TODO: Improve _createChild to create better organism...
-    # See brainstorming discord channel
     def _createChild(self,parents):
         MAX_TRIES = 3 #If child is not viable, will retry up to MAX_TRIES times
 

@@ -35,9 +35,9 @@ class GeneticSimulation:
             self._population.sort(key=lambda tup: tup[1])
 
         def getRandomParents(self):
-            org1 = random.choice([j for j in range(len(self._population)) if self._population[j][3]])
-            org2 = random.choice([j for j in range(len(self._population)) if self._population[j][3] and j != org1])
-            return self._population[org1][0],self._population[org2][0]
+            adults = [i[0] for i in self._population if i[3]]
+            sample = random.sample(adults,k=2)
+            return sample[0],sample[1]
 
         def getMostFit(self):
             if self._population is not None and len(self._population) > 0:
