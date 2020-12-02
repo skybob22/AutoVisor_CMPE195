@@ -46,7 +46,6 @@ def getGPA(user):
         courseUnits = courseGrade.course.numUnits
         unitsTaken = unitsTaken + courseUnits
         totalGradePoints = totalGradePoints + (GPA_WEIGHT[courseGrade.grade] * courseUnits)
-    # TODO: Account for transfer classes
     return totalGradePoints/unitsTaken
 
 ##
@@ -65,7 +64,6 @@ def getUnitsTaken(user,countInProgress=True):
         currentClasses = Course.objects.filter(id__in=currentSemSchedule.values('courses'))
         for course in currentClasses:
             unitsTaken += course.numUnits
-    # TODO: Account for transfer classes
     return unitsTaken
 
 ##
@@ -299,8 +297,6 @@ def getMissingTech(user,countPlanned=True,countInProgress=True):
 # @param countInProgress Whether to treat in-progress classes as passed
 # @return A Django Queryset of type 'Course' containing all the classes that the user has passed, use.all() to iterate over
 def getPassedClasses(user,countInProgress=False):
-    # TODO: Implement countInProgress
-
     coursesTaken = TranscriptGrade.objects.filter(transcript=user.student.transcript)
     coursesPassed = Course.objects.none()
 
