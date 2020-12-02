@@ -59,7 +59,7 @@ class Graph:
         if self.user.student.separateSV:
             coreToTake = coreToTake.exclude(isCapstone=True)
         else:
-            coreToTake = coreToTake.exclude(isAlternateCapstone=True)
+            coreToTake = coreToTake.exclude(isAlternateCapstone=True, isCapstone=False)
 
         optionalToTake = self.user.student.prefCourseList.exclude(id__in=passedClasses.values('id'))
 
@@ -129,8 +129,10 @@ class Graph:
         if numOptCoReq > 0:
             foundCoReqs = 0
             for coReq in course.NOfCoreqs.all():
-                if foundCoReqs < numOptCoReq and coReq in self.nodes and self.nodes[coReq] not in courseNode.coReqs:
-                    courseNode.coReqs.append(self.nodes[coReq])
+                tmp = CourseNode()
+                tmp.SJSUCourse = coReq
+                if foundCoReqs < numOptCoReq and tmp in self.nodes and self.nodes[tmp] not in courseNode.coReqs:
+                    courseNode.coReqs.append(self.nodes[tmp])
                     foundCoReqs = foundCoReqs + 1
             if foundCoReqs < numOptCoReq:
                 self.standby[courseNode] = courseNode
