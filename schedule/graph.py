@@ -16,7 +16,6 @@ class CourseNode:
         if self.TransferCourse is None:
             return self.SJSUCourse.numUnits
         else:
-            #TODO: Account for transfer courses
             return None
 
     def getCourse(self):

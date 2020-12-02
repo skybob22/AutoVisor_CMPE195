@@ -221,7 +221,6 @@ class GERequirement(models.Model):
 	#For classes with Multiple GE area's (e.g ENGR100W), ignore this field, can be used for all listed areas
 
 	class Meta:
-		#TODO: Figure out how to sort by many-to-many field
 		pass
 
 	def __str__(self):
@@ -268,7 +267,6 @@ class Catalogue(models.Model):
 		return str(self.department)
 
 	def addCourse(self,newCourse,grade='C-'):
-		#TODO: Add GE Req checking
 		cgObject = CatalogueGrade(catalogue=self,course=newCourse,grade=grade)
 		cgObject.save()
 
@@ -342,7 +340,6 @@ class Transcript(models.Model):
 	WSTPassed = models.BooleanField(default=False)
 
 	class Meta:
-		#TODO: Figure out how to reference student with symetrical one-to-one
 		pass
 
 	def __str__(self):
@@ -365,7 +362,6 @@ class SemesterSchedule(models.Model):
 	transferCourses = models.ManyToManyField('TransferCourse',symmetrical=False,blank=True)
 
 	class Meta:
-		#TODO: Figure out how to reference roadmap with symetrical many-to-many
 		pass
 
 	def __str__(self):
@@ -380,7 +376,6 @@ class Roadmap(models.Model):
 	semesterSchedules = models.ManyToManyField('SemesterSchedule',symmetrical=False,related_name='From_Roadmap',blank=True)
 
 	class Meta:
-		#TODO: Figure out how to reference student with symetrical one-to-one
 		pass
 
 	def __str__(self):
@@ -408,7 +403,6 @@ class PreferredCourse(models.Model):
 		return str(self.student) + ': ' + str(self.course)
 
 class Student(models.Model):
-	#TODO: Add reference from User
 	id = models.AutoField(auto_created=True, primary_key=True)
 	studentID = models.CharField(max_length=9,unique=True)
 	user = models.OneToOneField(User, default=None, null=True, on_delete=models.CASCADE)
@@ -429,11 +423,9 @@ class Student(models.Model):
 	friendRequests = models.ManyToManyField('self',symmetrical=False,related_name='RequestFriends',blank=True)
 
 	class Meta:
-		#TODO: Order by user name later
 		ordering = ('studentID',)
 
 	def __str__(self):
-		#TODO: Get student name from user later
 		return str(self.user) + ': ' + str(self.studentID)
 
 	def addFriend(self,student=None,sID=None):
